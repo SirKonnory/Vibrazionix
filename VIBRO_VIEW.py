@@ -13,8 +13,8 @@ import pandas as pd
 from VIBRO_MODEL import model_class
 import functools
 from datetime import datetime
-import random
 from config import DefaultParam
+import numpy as np
 
 util = DefaultParam()
 
@@ -367,6 +367,7 @@ class MainWindow(QMainWindow):
         self.spec_calc_button.clicked.connect(self.spec_calc)
 
     def create_data_layout(self):
+
         # Глобальный лэйап
         self.data_lay = QGridLayout(self.widget)
 
@@ -450,7 +451,6 @@ class MainWindow(QMainWindow):
 
         self.spec_option_lay.addWidget(QLabel())
 
-        # Группа по кривым усталости
         self.spec_option_lay.addWidget(self.spec_curve_checkbox)
 
         self.spec_curve_group = QGroupBox(
@@ -465,8 +465,6 @@ class MainWindow(QMainWindow):
 
         self.spec_option_lay.addWidget(self.spec_curve_group)
 
-        self.spec_curve_group.setEnabled(False)
-
         # Группа порасчету
         self.spec_calc_group = QGroupBox('Анализ')
 
@@ -479,7 +477,7 @@ class MainWindow(QMainWindow):
 
         self.spec_option_lay.addWidget(self.spec_calc_group)
 
-        self.spec_calc_group.setEnabled(False)
+        # self.spec_calc_group.setEnabled(False)
 
         self.spec_lay.addLayout(self.spec_option_lay)
 
@@ -587,6 +585,7 @@ class MainWindow(QMainWindow):
         # QMessageBox.about(self, "Selected File", "Successfully loaded!")
 
         self.plot_data_lay()
+        self.spec_tab.setEnabled(True)
 
     @status_bar_update('Выполняется расчет параметров...', 'Расчет параметров')
     def click_calc_param(self):
@@ -695,7 +694,8 @@ class MainWindow(QMainWindow):
         pass
 
     def generate_data(self):
-        pass
+
+        self.model.generate_data()
 
     def data_filt(self):
         pass
@@ -731,3 +731,119 @@ class MainWindow(QMainWindow):
         else:
 
             self.spec_curve_group.setEnabled(False)
+
+    def switch_window_type(self, index):
+
+        list_of_types = ["boxcar", "hann", "hamming", 'blackman']
+
+        self.spec_type_window = list_of_types[index]
+
+    def switch_VibroType(self, index):
+
+        list_of_types = [2, 1]
+
+        self.spec_typeVibro = list_of_types[index]
+
+    def switch_curve(self, index):
+
+        curve = {'B2': [(10, 40, 100, 500, 2000),         (0.003, 0.003, 0.0005, 0.0005, 0.00032)],
+                 'B': [(10, 40, 100, 500, 2000),         (0.012, 0.012, 0.02,   0.02,   0.00013)],
+                 'B3': [(10, 31, 100, 500, 2000),         (0.02,  0.02,  0.02,   0.02,   0.00013)],
+                 'C': [(10, 40, 54.7, 500, 2000),         (0.012, 0.012, 0.02,   0.02,   0.00126)],
+                 'D': [(10, 28, 40, 250, 500, 2000),      (0.02,  0.02,  0.04,   0.04,   0.08, 0.02)],
+                 'E': [(10, 28, 40, 100, 250, 500, 2000), (0.02,  0.02,  0.04,   0.04,   0.08, 0.08, 0.00505)]}
+
+        curve = list(curve.values())
+
+        self.spec_typeCurve = curve[index]
+
+    def spec_calc(self):
+
+        def fft(self):
+
+            fs = int(self.data_fs_edit.text())
+
+            self.model.get_fft()
+
+            # Удаление всех графиков
+
+            self.spec_widget.clear()
+
+            # установка масштаба по оси x и y
+            # data_plot_curve.setXRange(0, 10)
+            # data_plot_curve.setYRange(-1, 1)
+
+            # Вывод сигнала
+            self.spec_widget.setLabel('bottom', 'Time (s)', 's',
+                                      title_font=QtGui.QFont("Arial", 14),
+                                      units_font=QtGui.QFont("Arial", 12))
+
+            self.spec_widget.setLabel('left', 'Signal', 'V',
+                                      title_font=QtGui.QFont("Arial", 14),
+                                      units_font=QtGui.QFont("Arial", 12))
+
+            self.spec_widget.addLegend()
+
+            y = self.model.fft
+
+            x = self.model.f
+
+            self.spec_widget.plot(x, y,
+                                  pen={'width': 2, 'color': QtGui.QColor(
+                                      255, 0, 0, 127), 'style': QtCore.Qt.SolidLine},
+                                  name='БПФ')
+
+        def psd(self):
+
+            # Удаление всех графиков
+
+            self.spec_widget.clear()
+
+            fs = int(self.data_fs_edit.text())
+
+            window_width = int(self.spec_width_window_edit.text())
+            overlap = int(self.spec_overlap_edit.text())
+            window_type = self.spec_type_window
+
+            x = np.array(self.spec_typeCurve[0])
+            y = np.array(self.spec_typeCurve[1]) * self.spec_typeVibro
+
+            self.spec_widget.plot(x, y,
+                                  pen={'width': 2, 'color': QtGui.QColor(
+                                      255, 0, 0, 127), 'style': QtCore.Qt.DashLine},
+                                  name='СПМ')
+
+            self.model.get_psd(fs, window_type, window_width, overlap)
+
+            y = self.model.psd
+            x = self.model.f
+
+            self.spec_widget.plot(x, y,
+                                  pen={'width': 2, 'color': QtGui.QColor(
+                                      0, 0, 255, 127), 'style': QtCore.Qt.SolidLine},
+                                  name='СПМ')
+
+            # Вывод оригинала, если стоит checkbox
+            # if self.data_orig_checkbox.isChecked():
+
+            #     self.data_plot_widget.plot(x = np.arange(0, t , t / len(self.signal_orig.data) ), y = self.signal_orig.data, \
+            #         pen = {'width': 2, 'color': QtGui.QColor(0, 255, 0, 127), 'style': QtCore.Qt.SolidLine}, \
+            #             name = 'Исходный сигнал')
+
+            #     self.signal_orig.get_psd(fs)
+
+            #     self.data_fft_widget.plot(self.signal_orig.f, self.signal_orig.psd, \
+            #         pen = {'width': 2, 'color': QtGui.QColor(255, 0, 255, 127), 'style': QtCore.Qt.SolidLine}, \
+            #             name = 'Исходная СПМ')
+
+        def spectogramm(self):
+            pass
+
+        if self.spec_calc_combo.currentIndex() == 0:
+            fft(self)
+
+        if self.spec_calc_combo.currentIndex() == 1:
+            psd(self)
+
+        if self.spec_calc_combo.currentIndex() == 2:
+            spectogramm(self)

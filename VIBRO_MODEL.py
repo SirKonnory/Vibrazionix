@@ -2,7 +2,6 @@ import numpy as np
 from scipy import signal, fft
 from scipy.linalg import toeplitz, eig
 from config import DefaultParam
-
 util = DefaultParam()
 
 
@@ -58,12 +57,12 @@ class model_class:
             self.data, 75, axis=0), decimals=util.round_decimal)
 
     def get_fft(self):
+        if self.actual_col:
+            N = self.data.shape[0]
 
-        N = self.data.shape[0]
+            self.fft = np.abs(fft.fft(self.data) / N)[0:N//2]
 
-        self.fft = np.abs(fft.fft(self.data) / N)[0:N//2]
-
-        self.f = fft.fftfreq(N, 1/self.fs)[:N//2]
+            self.f = fft.fftfreq(N, 1/self.fs)[:N//2]
 
     def get_psd(self, fs, window_type=None, window_width=None, overlap=None):
 

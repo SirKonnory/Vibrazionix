@@ -6,28 +6,28 @@ from PySide6.QtWidgets import QApplication, QTabWidget, QGridLayout, \
     QGroupBox, QMessageBox, QRadioButton, QTableWidget, QStatusBar, QTableWidgetItem, \
     QHeaderView, QInputDialog, QTextEdit, QSplitter
 
-
 import pyqtgraph as pg
 import os
 import pandas as pd
-from VIBRO_MODEL import model_class
+from vibro_model import ModelClass
 import functools
 from datetime import datetime
 from config import DefaultParam
 import numpy as np
 
+
 util = DefaultParam()
 
 
-class plotter(pg.PlotWidget):
+class Plotter(pg.PlotWidget):
     def __init__(self):
-        super().__init__()
 
+        super().__init__()
+        self.curves = []
         self.setBackground("w")
 
     def plot_data(self, x, y, actual_col):
         if y.any:
-            self.curves = []
 
             for i, col in enumerate(actual_col):
                 color = QtGui.QColor(util.default_colors[col])
@@ -42,13 +42,14 @@ class plotter(pg.PlotWidget):
         print('Графики пытаются обновиться')
 
 
-class table(QTableWidget):
+class Table(QTableWidget):
     def update_data(self, new_data):
         print('Таблица {} обновлена'.format(str(self)))
 
-    def __init__(self, is_model_table=bool):
+    def __init__(self, is_model_table = bool):
         super().__init__()
 
+        self.checkboxes = []
         self._is_model_table = is_model_table
 
         if self._is_model_table:
@@ -97,7 +98,7 @@ class table(QTableWidget):
             self.setRowCount(data.shape[0] + 1)
             self.setHorizontalHeaderLabels(data.columns.to_list())
             fill_table(self, data.values)
-            self.create_ckeck_box()
+            self.create_check_box()
 
         else:
             self.setRowCount(data.shape[1])
@@ -116,9 +117,8 @@ class table(QTableWidget):
                 data = item.text()
                 print(f'Содержимое в строке {row}, столбце {col}: {data}')
 
-    def create_ckeck_box(self):
+    def create_check_box(self):
         self.insertRow(0)
-        self.checkboxes = []
 
         for col in range(self.columnCount()):
             checkbox = QCheckBox()
@@ -144,7 +144,7 @@ class table(QTableWidget):
 
 
 class MainWindow(QMainWindow):
-
+    @staticmethod
     def status_bar_update(prefix, suffix):
         def my_decorator(func):
             @functools.wraps(func)
@@ -263,8 +263,8 @@ class MainWindow(QMainWindow):
 
         # Создаем таблицы
         # ----------------------------------------------------------------------
-        self.data_model_table = table(True)
-        self.data_param_table = table(False)
+        self.data_model_table = Table(True)
+        self.data_param_table = Table(False)
 
         # Мастер чек-мать-его-бокс
         self.data_master_checkbox = QCheckBox("Turn all")
@@ -291,8 +291,8 @@ class MainWindow(QMainWindow):
         self.data_load_button.setToolTip('Рассчитать статистические парамтеры')
 
         # Создаем графический виджет
-        self.data_plot_widget = plotter()
-        self.data_spec_widget = plotter()
+        self.data_plot_widget = Plotter()
+        self.data_spec_widget = Plotter()
 
         # Создаем поля ввода
         self.data_fs_edit = QLineEdit(str(util.sampling_frequency))
@@ -563,7 +563,7 @@ class MainWindow(QMainWindow):
             self.data_model_table.put_data(
                 data.head(util.channel_head_count))
 
-            self.model = model_class(
+            self.model = ModelClass(
                 data.values, int(self.data_fs_edit.text())
             )
 
@@ -580,7 +580,7 @@ class MainWindow(QMainWindow):
 
             for col, checkbox in enumerate(self.data_model_table.checkboxes):
                 checkbox.stateChanged.connect(
-                    lambda state, col=col: self.toggle_column(col))
+                    lambda state, col = col: self.toggle_column(col))
 
         # QMessageBox.about(self, "Selected File", "Successfully loaded!")
 

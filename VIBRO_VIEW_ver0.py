@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication, QTabWidget, QGridLayout, \
 import pyqtgraph as pg
 import os
 import pandas as pd
-from VIBRO_MODEL import model_class
+from vibro_model import ModelClass
 import functools
 from datetime import datetime
 import random
@@ -347,7 +347,7 @@ class MainWindow(QMainWindow):
                 data = pd.read_csv(self.pathLoadFile, sep='\s+',
                                    index_col=False, dtype=float)
 
-            self.model = model_class(
+            self.model = ModelClass(
                 data.to_numpy(), int(self.data_fs_edit.text()))
             self.channel_name = data.columns.to_list()
 

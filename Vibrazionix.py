@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
 
-import VIBRO_VIEW
+import vibro_view
 
 if __name__ == "__main__":
     app = QApplication.instance()
@@ -10,14 +10,14 @@ if __name__ == "__main__":
         app = QApplication()
         app.setStyle("Fusion")
 
-    run = VIBRO_VIEW.MainWindow()
+    run = vibro_view.MainWindow()
 
     icon1 = QIcon("iconka.png")
     run.setWindowIcon(icon1)
 
     icon_size = QSize(200, 200)
     run.setIconSize(icon_size)
-    run.resize(1400, 800)
+    run.resize(1920 , 1080)
     run.setWindowTitle('Vibrazionix')
     run.show()
 

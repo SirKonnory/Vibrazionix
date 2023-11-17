@@ -5,7 +5,7 @@ from config import DefaultParam
 util = DefaultParam()
 
 
-class model_class:
+class ModelClass:
 
     def __init__(self, data, fs):
 
@@ -19,6 +19,9 @@ class model_class:
 
         self.t = np.arange(0, self.data.shape[0] * dt, dt)
         self.actual_col = [i for i in range(self.data.shape[1])]
+
+    def notify_observers(self):
+        pass
 
     def register(self, observer):
         self.observers.append(observer)

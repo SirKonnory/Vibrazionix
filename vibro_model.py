@@ -1,8 +1,10 @@
 import numpy as np
 from scipy import signal, fft
 from scipy.linalg import toeplitz, eig
-from config import DefaultParam
-util = DefaultParam()
+from config import Config
+
+
+config = Config()
 
 
 class ModelClass:
@@ -41,23 +43,23 @@ class ModelClass:
     def calc_integrate_param(self):
 
         self.data_min = np.around(self.data.min(
-            axis=0), decimals=util.round_decimal)
+            axis=0), decimals=config.round_decimal)
         self.data_max = np.around(self.data.max(
-            axis=0), decimals=util.round_decimal)
+            axis=0), decimals=config.round_decimal)
         self.data_std = np.around(
-            np.std(self.data, axis=0), decimals=util.round_decimal)
+            np.std(self.data, axis=0), decimals=config.round_decimal)
         self.data_rms = np.around(
-            np.sqrt(np.mean(self.data**2, axis=0)), decimals=util.round_decimal)
+            np.sqrt(np.mean(self.data**2, axis=0)), decimals=config.round_decimal)
         self.data_mean = np.around(
-            np.mean(self.data, axis=0), decimals=util.round_decimal)
+            np.mean(self.data, axis=0), decimals=config.round_decimal)
         self.data_var = np.around(
-            np.var(self.data, axis=0), decimals=util.round_decimal)
+            np.var(self.data, axis=0), decimals=config.round_decimal)
         self.data_25_percent = np.around(np.percentile(
-            self.data, 25, axis=0), decimals=util.round_decimal)
+            self.data, 25, axis=0), decimals=config.round_decimal)
         self.data_50_percent = np.around(np.percentile(
-            self.data, 59, axis=0), decimals=util.round_decimal)
+            self.data, 59, axis=0), decimals=config.round_decimal)
         self.data_75_percent = np.around(np.percentile(
-            self.data, 75, axis=0), decimals=util.round_decimal)
+            self.data, 75, axis=0), decimals=config.round_decimal)
 
     def get_fft(self):
         if self.actual_col:
@@ -173,9 +175,10 @@ class ModelClass:
             window = np.ones(window_size) / window_size
 
             temp = np.array([np.convolve(self.data[0], window, mode='same')])
+
             for i in range(1, self.data.shape[0]):
-                temp = np.vstack(
-                    temp, [np.convolve(self.data[i], window, mode='same')])
+                temp = np.vstack([temp, [np.convolve(self.data[i], window, mode='same')]])
+
             self.data = temp
             self.notify_observers()
 
@@ -229,3 +232,8 @@ class ModelClass:
             self.recovered = np.sum(self.rc[:, start: end], axis=1)
         else:
             self.recovered = np.sum(self.rc[:, :], axis=1)
+
+    def generate_data(self):
+        self.data = np.arange(0, 10000)
+        self.data.reshape(10000,10)
+

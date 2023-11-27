@@ -17,7 +17,9 @@ if __name__ == "__main__":
 
     icon_size = QSize(200, 200)
     run.setIconSize(icon_size)
-    run.resize(1920 , 1080)
+
+    run.showMaximized()
+
     run.setWindowTitle('Vibrazionix')
     run.show()
 

@@ -3,7 +3,7 @@ from PySide6 import QtCore, QtGui
 from PySide6.QtWidgets import QApplication, QTabWidget, QGridLayout, QMainWindow, \
     QFileDialog, QLabel, QLineEdit, QPushButton, QWidget, QHBoxLayout, QVBoxLayout, \
     QCheckBox, QComboBox, QGroupBox, QTableWidget, QStatusBar, QTableWidgetItem, \
-    QInputDialog, QTextEdit, QSplitter
+    QInputDialog, QTextEdit, QSplitter, QDialog, QMessageBox
 
 import pyqtgraph as pg
 import os
@@ -17,7 +17,162 @@ import numpy as np
 config = Config()
 
 
-class Plotter(pg.PlotWidget):
+class DialogSmooth(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        label_window = QLabel('Ширина окна скользящего реднего')
+        self.edit_window = QLineEdit('8')
+
+
+        ok_button = QPushButton("ОК", self)
+        ok_button.clicked.connect(self.accept)
+
+        cancel_button = QPushButton("Отмена", self)
+        cancel_button.clicked.connect(self.reject)
+
+        lay_dialog = QGridLayout()
+        lay_dialog.addWidget(label_window, 0, 0)
+        lay_dialog.addWidget(self.edit_window, 0, 1)
+
+        lay_dialog.addWidget(ok_button, 2, 0)
+        lay_dialog.addWidget(cancel_button, 2, 1)
+
+        self.setLayout(lay_dialog)
+
+
+class DialogFilter(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        plot_widget = DataPlotter()
+
+        label_rank = QLabel('Порядок фильтра')
+        label_lowfreq = QLabel('Нижняя частота, Гц')
+        label_heigfreq = QLabel('Верхняя частота, Гц')
+
+        self.edit_rank = QLineEdit('6')
+        self.edit_lowfreq = QLineEdit('2')
+        self.edit_heigfreq = QLineEdit('6')
+
+        ok_button = QPushButton("ОК", self)
+        ok_button.clicked.connect(self.accept)
+
+        cancel_button = QPushButton("Отмена", self)
+        cancel_button.clicked.connect(self.reject)
+
+        lay_dialog = QGridLayout()
+        lay_dialog.addWidget(plot_widget, 0, 0, 5, 5)
+
+        lay_dialog.addWidget(label_rank, 5, 0)
+        lay_dialog.addWidget(self.edit_rank, 5, 1)
+
+        lay_dialog.addWidget(label_lowfreq, 6, 0)
+        lay_dialog.addWidget(self.edit_lowfreq, 6, 1)
+
+        lay_dialog.addWidget(label_heigfreq, 7, 0)
+        lay_dialog.addWidget(self.edit_heigfreq, 7, 1)
+
+        lay_dialog.addWidget(ok_button, 8, 0)
+        lay_dialog.addWidget(cancel_button, 8, 1)
+
+        
+        self.setLayout(lay_dialog)
+
+
+class DialogProcessor(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.generate = False
+
+        self.setWindowTitle('Параметры генерации сигнала')
+
+        label_numb_signal = QLabel('Номер гармоники')
+        label_amplitude = QLabel('Амплитуды гармоник')
+        label_freq = QLabel('Частоты гармоник, град')
+        label_phase = QLabel('Сдвиг по фазе для гармоник')
+
+        label_duration = QLabel('Длительность сигнала, с')
+        label_sampling = QLabel('Частота дискретизации сигнала, Гц')
+
+        self.edit_duration = QLineEdit('10')
+        self.edit_sampling = QLineEdit('32')
+
+        label_1 = QLabel("Гармоника №1")
+        self.edit1_a = QLineEdit('2')
+        self.edit1_f = QLineEdit('7')
+        self.edit1_p = QLineEdit('0')
+
+        label_2 = QLabel("Гармоника №2")
+        self.edit2_a = QLineEdit('5')
+        self.edit2_f = QLineEdit('5')
+        self.edit2_p = QLineEdit('90')
+
+        label_3 = QLabel("Гармоника №3")
+        self.edit3_a = QLineEdit('7')
+        self.edit3_f = QLineEdit('1')
+        self.edit3_p = QLineEdit('180')
+
+        label_noise = QLabel('Амплитуда шума')
+        self.noise = QLineEdit('10')
+
+        label_count = QLabel('Количество сигналов')
+        self.edit_count = QLineEdit('6')
+
+        ok_button = QPushButton("ОК", self)
+        ok_button.clicked.connect(self.accept)  # Закрываем диалог при нажатии "ОК"
+
+        cancel_button = QPushButton("Отмена", self)
+        cancel_button.clicked.connect(self.reject)  # Закрываем диалог при нажатии "Отмена"
+
+        lay_dialog = QGridLayout()
+
+        lay_dialog.addWidget(label_numb_signal, 0, 0)
+        lay_dialog.addWidget(label_amplitude, 0, 1)
+        lay_dialog.addWidget(label_freq, 0, 2)
+        lay_dialog.addWidget(label_phase, 0, 3)
+
+        lay_dialog.addWidget(label_1, 1, 0)
+        lay_dialog.addWidget(self.edit1_a, 1, 1)
+        lay_dialog.addWidget(self.edit1_f, 1, 2)
+        lay_dialog.addWidget(self.edit1_p, 1, 3)
+
+        lay_dialog.addWidget(label_2, 2, 0)
+        lay_dialog.addWidget(self.edit2_a, 2, 1)
+        lay_dialog.addWidget(self.edit2_f, 2, 2)
+        lay_dialog.addWidget(self.edit2_p, 2, 3)
+
+        lay_dialog.addWidget(label_3, 3, 0)
+        lay_dialog.addWidget(self.edit3_a, 3, 1)
+        lay_dialog.addWidget(self.edit3_f, 3, 2)
+        lay_dialog.addWidget(self.edit3_p, 3, 3)
+
+        lay_dialog.addWidget(label_noise, 4, 0)
+        lay_dialog.addWidget(self.noise, 4, 1)
+
+        lay_dialog.addWidget(label_duration, 5, 0)
+        lay_dialog.addWidget(self.edit_duration, 5, 1)
+
+        lay_dialog.addWidget(label_sampling, 6, 0)
+        lay_dialog.addWidget(self.edit_sampling, 6, 1)
+
+        lay_dialog.addWidget(label_count, 7, 0)
+        lay_dialog.addWidget(self.edit_count, 7, 1)
+
+        lay_dialog.addWidget(ok_button, 8, 0)
+        lay_dialog.addWidget(cancel_button, 8, 1)
+
+        self.setLayout(lay_dialog)
+
+    def accept(self):
+        self.generate = True
+        super().accept()
+
+    def reject(self):
+        self.generate = False
+        super().reject()
+
+class DataPlotter(pg.PlotWidget):
     def __init__(self):
 
         super().__init__()
@@ -43,8 +198,9 @@ class Table(QTableWidget):
     def update_data(self, new_data):
         print('Таблица {} обновлена'.format(str(self)))
 
-    def __init__(self, is_model_table):
-        super().__init__()
+    def reinit(self, is_model_table):
+        self.setRowCount(0)
+        self.setColumnCount(0)
 
         self.checkboxes = []
         self._is_model_table = is_model_table
@@ -76,6 +232,40 @@ class Table(QTableWidget):
 
         self.list_header = init_channel_name
 
+
+    def __init__(self, is_model_table):
+            super().__init__()
+
+            self.checkboxes = []
+            self._is_model_table = is_model_table
+
+            if self._is_model_table:
+
+                self.setRowCount(config.init_channel_count)
+                self.setColumnCount(config.init_channel_count)
+
+                init_channel_name = [
+                    'Channel {}'.format(i + 1) for i in range(self.columnCount())]
+
+            else:
+
+                self.setRowCount(config.init_channel_count)
+
+                init_channel_name = ['Name channel', 'Type', 'Unit', 'Min', 'Max',
+                                     "RMS", "Mean", 'Variance', 'First quartile',
+                                     'Median', 'Third quartile']
+
+                self.setColumnCount(len(init_channel_name))
+
+            self.setHorizontalHeaderLabels(init_channel_name)
+
+            # self.resizeColumnsToContents()
+
+            self.horizontalHeader().sectionDoubleClicked.connect(
+                self.change_horizontal_header)
+
+            self.list_header = init_channel_name
+
     def put_data(self, data):
 
         def fill_table(table, table_data):
@@ -87,18 +277,19 @@ class Table(QTableWidget):
                             i, j, QTableWidgetItem('...'))
                     else:
                         table.setItem(i, j, QTableWidgetItem(
-                            str(table_data[i, j])))
+                            str(table_data[i, j]),))
 
         if self._is_model_table:
 
             self.setColumnCount(data.shape[1])
             self.setRowCount(data.shape[0] + 1)
             self.setHorizontalHeaderLabels(data.columns.to_list())
-            fill_table(self, data.values)
+            fill_table(self, data.round(3).values)
             self.create_check_box()
 
         else:
             self.setRowCount(data.shape[1])
+
             fill_table(self, data.values)
 
     # def get_data(self, selected_indexes):  # !!!
@@ -131,6 +322,7 @@ class Table(QTableWidget):
         new_header, ok = QInputDialog.getText(self,
                                               'Change header label for column %d' % index,
                                               'Header:',
+                                              QLineEdit.Normal,
                                               old_header)
         dialog = QInputDialog()
         dialog.resize(dialog.sizeHint())
@@ -173,6 +365,10 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.pca_tab = None
+        self.data_genereted = False
+        self.model = ModelClass()
+        self.generated_data = False
         self.spec_tab = None
         self.data_numb_channel_label1 = None
         self.data_len_data_label1 = None
@@ -186,7 +382,6 @@ class MainWindow(QMainWindow):
         self.data_plot_widget = None
         self.data_param_table = None
         self.data_fs_edit = None
-        self.model = None
         self.data_model_table = None
         self.data_filepath_label = None
         self.data_global_lay = None
@@ -200,7 +395,7 @@ class MainWindow(QMainWindow):
             button_action_open = QtGui.QAction(QtGui.QIcon(""), '&Открыть', self)
             # button_action_open.setStatusTip('Открыть файл с данными для обработки и анализа')
             button_action_open.setShortcut('Ctrl+F')
-            button_action_open.triggered.connect(self.click_load_data)
+            button_action_open.triggered.connect(self.data_click_load)
 
             button_action_exit = QtGui.QAction(QtGui.QIcon(""), '&Выйти', self)
             # button_action_exit.setStatusTip('Покинуть "Вибрационикс"')
@@ -210,25 +405,27 @@ class MainWindow(QMainWindow):
             button_action_help = QtGui.QAction(QtGui.QIcon(""), '&Помощь', self)
             # button_action_help.setStatusTip('Открыть "ИИЦ 741.033-056-2023"')
             button_action_help.setShortcut('Ctrl+H')
-            button_action_help.triggered.connect(self.reference_call)
+            button_action_help.triggered.connect(self.menu_reference)
 
             button_action_clear = QtGui.QAction(
                 QtGui.QIcon(""), '&Очистить все', self)
-            button_action_help.triggered.connect(self.clear_all)
+            button_action_clear.triggered.connect(self.menu_clear)
 
             button_action_generate = QtGui.QAction(
                 QtGui.QIcon(""), '&Сгенерировать данные', self)
-            button_action_help.triggered.connect(self.generate_data)
+            button_action_generate.triggered.connect(self.menu_generate)
 
             button_action_filt = QtGui.QAction(
                 QtGui.QIcon(""), '&Фильтрация', self)
-            button_action_open.triggered.connect(self.data_filt)
+            button_action_filt.triggered.connect(self.menu_filter)
+
             button_action_smooth = QtGui.QAction(
                 QtGui.QIcon(""), '&Сглаживание', self)
-            button_action_open.triggered.connect(self.data_filt)
+            button_action_smooth.triggered.connect(self.menu_smooth)
+
             button_action_quant = QtGui.QAction(
                 QtGui.QIcon(""), '&Квантование', self)
-            button_action_open.triggered.connect(self.data_filt)
+            button_action_quant.triggered.connect(self.menu_filter)
 
             file_menu = menubar.addMenu('&File')
             file_menu.addAction(button_action_open)
@@ -257,9 +454,11 @@ class MainWindow(QMainWindow):
             # Мастер чек-мать-его-бокс
             self.data_master_checkbox = QCheckBox("Turn all")
             self.data_master_checkbox.setChecked(True)
-            self.data_master_checkbox.stateChanged.connect(self.toggle_all_columns)
+            self.data_master_checkbox.stateChanged.connect(self.data_toggle_all)
 
             data_file_label = QLabel('Open file:')
+            data_file_label.setMaximumWidth(100)
+
             self.data_filepath_label = QLabel('')
             data_sample_freq_label = QLabel("Sample frequency")
             data_numb_channel_label = QLabel("Number of channels:")
@@ -269,16 +468,18 @@ class MainWindow(QMainWindow):
 
             # Создаем кнопки
             data_load_button = QPushButton("Load data")
-            data_load_button.clicked.connect(self.click_load_data)
+            data_load_button.setMaximumWidth(200)
+            data_load_button.clicked.connect(self.data_click_load)
             data_load_button.setToolTip('Открыть расположение файла')
 
             data_calc_button = QPushButton("Calculate integral parameters")
-            data_calc_button.clicked.connect(self.click_calc_param)
-            data_load_button.setToolTip('Рассчитать статистические параметры')
+            data_calc_button.setMaximumWidth(200)
+            data_calc_button.clicked.connect(self.data_click_calc)
+            data_calc_button.setToolTip('Рассчитать статистические параметры')
 
             # Создаем графический виджет
-            self.data_plot_widget = Plotter()
-            self.data_spec_widget = Plotter()
+            self.data_plot_widget = DataPlotter()
+            self.data_spec_widget = DataPlotter()
 
             # Создаем поля ввода
             self.data_fs_edit = QLineEdit(str(config.sampling_frequency))
@@ -304,6 +505,7 @@ class MainWindow(QMainWindow):
             data_file_grouplay.addWidget(data_load_button)
             data_file_grouplay.addWidget(self.data_filepath_label)
             data_file_grouplay.addWidget(self.empty_widget)
+
             data_file_grouplay.addWidget(self.data_fs_edit)
             data_file_grouplay.addWidget(data_sample_freq_label)
 
@@ -319,11 +521,12 @@ class MainWindow(QMainWindow):
             param_lay.addWidget(QWidget())
             param_lay.addWidget(data_numb_channel_label)
             param_lay.addWidget(self.data_numb_channel_label1)
-            param_lay.addWidget(QWidget())
+            param_lay.addWidget(self.empty_widget)
+
             param_lay.addWidget(self.data_master_checkbox)
 
             data_lay.addLayout(param_lay)
-
+            data_lay.addWidget(self.empty_widget)
             data_lay.addWidget(data_calc_button)
 
             data_lay.addWidget(self.data_param_table)
@@ -343,7 +546,6 @@ class MainWindow(QMainWindow):
             self.data_global_lay.addWidget(data_splitter)
 
         def create_spect_tab():
-
             # Создание лэйблов
             self.spec_type_window_label = QLabel("Тип оконного преобразования:")
             self.spec_width_window_label = QLabel("Ширина окна:")
@@ -379,7 +581,7 @@ class MainWindow(QMainWindow):
             self.spec_typevibro_combo.addItems(
                 ['Жетская вибрация', 'Стандартная вибрация'])
             self.spec_typevibro_combo.currentIndexChanged.connect(
-                self.switch_VibroType)
+                self.switch_vibrotype)
 
             self.spec_calc_combo = QComboBox()
             self.spec_calc_combo.addItems(['Быстрое преобразование Фурье',
@@ -473,7 +675,6 @@ class MainWindow(QMainWindow):
             self.spec_lay.addWidget(self.spec_widget)
 
         def create_pca_tab():
-
             self.pca_processing = QPushButton("Расчитать ГК")
             self.pca_processing.clicked.connect(self.pca_calc)
 
@@ -621,7 +822,7 @@ class MainWindow(QMainWindow):
 
         self.widget = QWidget()
         self.empty_widget = QWidget()
-        self.empty_widget.setMinimumWidth(400)
+        self.empty_widget.setMinimumWidth(600)
 
         create_menubar()
 
@@ -635,56 +836,139 @@ class MainWindow(QMainWindow):
         create_log()
         create_tabs()
 
+    def menu_reference(self):
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle('Справка')
+        msg_box.setIcon(QMessageBox.Information)
+        msg_box.setText('Вы можете обратиться за помощью к моему создателю Гордону С.В. по тел. 8(495) 777-21-01, доб. 74-90')
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        _ = msg_box.exec()
+
+    def menu_clear(self):
+
+        self.data_model_table.reinit(True)
+        self.data_param_table.reinit(False)
+
+        self.data_plot_widget.clear()
+        self.data_spec_widget.clear()
+
+        self.model = ModelClass()
+
+    def menu_generate(self):
+
+        dialog = DialogProcessor()
+        dialog.exec()
+
+        if dialog.generate:
+            self.menu_clear()
+
+            a = [float(dialog.edit1_a.text()), float(dialog.edit2_a.text()), float(dialog.edit3_a.text())]
+            f = [float(dialog.edit1_f.text()), float(dialog.edit2_f.text()), float(dialog.edit3_f.text())]
+            p = [float(dialog.edit1_p.text()), float(dialog.edit2_p.text()), float(dialog.edit3_p.text())]
+            noise = float(dialog.noise.text())
+            t = float(dialog.edit_duration.text())
+            fs = float(dialog.edit_sampling.text())
+            n = int(dialog.edit_count.text())
+
+            self.model.generate_data(a, f, p, noise, t, fs, n)
+
+            self.data_genereted = True
+            self.data_fs_edit.text = f'{fs}'
+            self.data_click_load()
+
+
+        self.data_genereted = False
+
+    def menu_filter(self):
+
+        dialog = DialogFilter()
+
+        result = dialog.exec()
+
+        if result:
+
+            low_freq = dialog.edit_lowfreq.text()
+            heig_freq = dialog.edit_heigfreq.text()
+            rank = int(dialog.edit_rank.text())
+            df = int(float(self.data_fs_edit.text))
+            self.model.filt_signal_data(low_freq, heig_freq, rank, df)
+
+            self.data_plot()
+
+    def menu_smooth(self):
+        dialog = DialogSmooth()
+
+        result = dialog.exec()
+
+        if result:
+            window = dialog.edit_window.text()
+            self.model.smooth_signal_data(window)
+
+            self.data_plot()
+
+
+    def menu_quant(self):
+        pass
+
+    def menu_report(self):
+        pass
+
     @status_bar_update('Выполняется загрузка данных...', 'Загрузка данных')
-    def click_load_data(self):
-        
-        data = None
-        
-        f_name, f_type = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*);;Text Document (*.txt)"
-                                                                            ";;CSV File(*.csv);;Excel Binary File"
-                                                                            "(*.xls);;Excel File(*.xlsx)")
-        root, extension = os.path.splitext(f_name)
-        extent = extension.casefold()
+    def data_click_load(self):
 
-        pathloadfile = root + extent
+        self.data_model_table.reinit(True)
+        self.data_param_table.reinit(False)
 
-        if f_name:
-            self.data_filepath_label.setText(f_name)
+        if not self.data_genereted:
 
-            if extent == ".xls" or extent == ".xlsx":
-                data = pd.read_excel(
-                    pathloadfile, index_col=False, dtype=float)
-            elif extent == ".txt" or extent == ".csv":
-                data = pd.read_csv(pathloadfile, sep='\s+',
-                                   index_col=False, dtype=float)
+            f_name, f_type = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*);;Text Document (*.txt)"
+                                                                                ";;CSV File(*.csv);;Excel Binary File"
+                                                                                "(*.xls);;Excel File(*.xlsx)")
+            root, extension = os.path.splitext(f_name)
+            extent = extension.casefold()
+
+            pathloadfile = root + extent
+
+            if f_name:
+                self.data_filepath_label.setText(f_name)
+
+                if extent == ".xls" or extent == ".xlsx":
+                    data = pd.read_excel(
+                        pathloadfile, index_col=False, dtype=float)
+                elif extent == ".txt" or extent == ".csv":
+                    data = pd.read_csv(pathloadfile, sep='\s+',
+                                       index_col=False, dtype=float)
+
+                self.data_model_table.put_data(
+                    data.head(config.channel_head_count))
+
+                self.model.load_data(
+                    data.values, int(self.data_fs_edit.text())
+                )
+
+        else:
+            self.data_filepath_label.setText('Данные сгенерированы пользователем')
+            data = pd.DataFrame(data=self.model.data.astype(float), columns=[f'Сигнал №{i+1}' for i in range(len(self.model.data[0]))])
 
             self.data_model_table.put_data(
                 data.head(config.channel_head_count))
 
-            self.model = ModelClass(
-                data.values, int(self.data_fs_edit.text())
-            )
+        self.channel_name = data.columns.to_list()  # !!!
+        # print(data.columns.to_list())
+        self.data_len_data_label1.setText(str(self.model.data.shape[0]))
+        self.data_numb_channel_label1.setText(
+            str(self.model.data.shape[1]))
 
-            self.model.register(self.data_model_table)
-            self.model.register(self.data_param_table)
-            self.model.register(self.data_plot_widget)
-            self.model.register(self.data_spec_widget)
+        for col, checkbox in enumerate(self.data_model_table.checkboxes):
+            checkbox.stateChanged.connect(
+                lambda state, col = col: self.data_toggle_one(col))
 
-            self.channel_name = data.columns.to_list()  # !!!
-
-            self.data_len_data_label1.setText(str(self.model.data.shape[0]))
-            self.data_numb_channel_label1.setText(
-                str(self.model.data.shape[1]))
-
-            for col, checkbox in enumerate(self.data_model_table.checkboxes):
-                checkbox.stateChanged.connect(
-                    functools.partial(self.toggle_column, col))
-
-        self.plot_data_lay()
+        self.data_plot()
         self.spec_tab.setEnabled(True)
+        self.pca_tab.setEnabled(True)
 
     @status_bar_update('Выполняется расчет параметров...', 'Расчет параметров')
-    def click_calc_param(self):
+    def data_click_calc(self):
         # Clear table
         # self.data_param_table.clear()
 
@@ -712,29 +996,26 @@ class MainWindow(QMainWindow):
 
         self.data_param_table.put_data(param)
 
-    def toggle_all_columns(self):
+    def data_toggle_all(self):
 
         master_state = self.data_master_checkbox.isChecked()
 
         for checkbox in self.data_model_table.checkboxes:
             checkbox.setChecked(master_state)
 
-    def toggle_column(self, col):
+    def data_toggle_one(self, col):
 
         if self.data_model_table.checkboxes[col].isChecked():
             self.model.insert_data(col)
-            self.plot_data_lay()
+            self.data_plot()
         else:
             self.model.delete_data(col)
-            self.plot_data_lay()
+            self.data_plot()
 
-        self.update_head_color()
-
-    def uodate_model(self):
-        pass
+        self.data_update_head_color()
 
     @status_bar_update('Выполняется построение графиков...', 'Построение графиков')
-    def plot_data_lay(self):
+    def data_plot(self):
 
         self.data_plot_widget.clear()
         self.data_spec_widget.clear()
@@ -749,7 +1030,7 @@ class MainWindow(QMainWindow):
                                        title_font=QtGui.QFont("Arial", 14),
                                        units_font=QtGui.QFont("Arial", 12))
 
-        self.data_plot_widget.addLegend()
+        self.data_plot_widget.addLegend(loc='best')
         self.data_plot_widget.showGrid(x=True, y=True, alpha=0.3)
 
         self.data_plot_widget.plot_data(
@@ -763,18 +1044,19 @@ class MainWindow(QMainWindow):
                                        title_font=QtGui.QFont("Arial", 14),
                                        units_font=QtGui.QFont("Arial", 12))
 
-        self.data_spec_widget.addLegend()
+        self.data_spec_widget.addLegend(loc='best')
         self.data_spec_widget.showGrid(x=True, y=True, alpha=0.3)
 
         self.data_spec_widget.plot_data(
             self.model.f, self.model.fft, self.model.actual_col)
         # ======================================================================
-        self.update_head_color()
+        self.data_update_head_color()
 
-    def update_head_color(self):
+    def data_update_head_color(self):
 
-        for i in range(len(self.channel_name)):
-            color = QtGui.QColor(config.default_colors[i])
+        for i in range(self.model.data.shape[1]):
+
+            # color = QtGui.QColor(config.default_colors[i])
             self.data_model_table.checkboxes[i].setStyleSheet(
                 "background-color: " + 'white')
 
@@ -783,27 +1065,7 @@ class MainWindow(QMainWindow):
             self.data_model_table.checkboxes[i].setStyleSheet(
                 "background-color: " + color.name())
 
-    def reference_call(self):
-        pass
 
-    def clear_all(self):
-        pass
-
-    def generate_data(self):
-
-        self.model.generate_data()
-
-    def data_filt(self):
-        pass
-
-    def data_smooth(self):
-        pass
-
-    def data_quant(self):
-        pass
-
-    def print_report(self):
-        pass
 
     # self.data_saveplot_button.setEnabled(True)
 
@@ -835,7 +1097,7 @@ class MainWindow(QMainWindow):
 
         self.spec_type_window = list_of_types[index]
 
-    def switch_VibroType(self, index):
+    def switch_vibrotype(self, index):
 
         list_of_types = [2, 1]
 
@@ -872,12 +1134,12 @@ class MainWindow(QMainWindow):
 
             # Вывод сигнала
             window.spec_widget.setLabel('bottom', 'Time (s)', 's',
-                                      title_font=QtGui.QFont("Arial", 14),
-                                      units_font=QtGui.QFont("Arial", 12))
+                                        title_font=QtGui.QFont("Arial", 14),
+                                        units_font=QtGui.QFont("Arial", 12))
 
             window.spec_widget.setLabel('left', 'Signal', 'V',
-                                      title_font=QtGui.QFont("Arial", 14),
-                                      units_font=QtGui.QFont("Arial", 12))
+                                        title_font=QtGui.QFont("Arial", 14),
+                                        units_font=QtGui.QFont("Arial", 12))
 
             window.spec_widget.addLegend()
 
@@ -886,9 +1148,9 @@ class MainWindow(QMainWindow):
             x = window.model.f
 
             window.spec_widget.plot(x, y,
-                                  pen={'width': 2, 'color': QtGui.QColor(
-                                      255, 0, 0, 127)},
-                                  name='БПФ')
+                                    pen={'width': 2, 'color': QtGui.QColor(
+                                        255, 0, 0, 127)},
+                                    name='БПФ')
 
         def psd(window):
 
@@ -906,9 +1168,9 @@ class MainWindow(QMainWindow):
             y = np.array(window.spec_typecurve[1]) * window.spec_typevibro
 
             window.spec_widget.plot(x, y,
-                                  pen={'width': 2, 'color': QtGui.QColor(
-                                      255, 0, 0, 127), 'style': QtCore.Qt.DashLine},
-                                  name='СПМ')
+                                    pen={'width': 2, 'color': QtGui.QColor(
+                                        255, 0, 0, 127), 'style': QtCore.Qt.DashLine},
+                                    name='СПМ')
 
             window.model.get_psd(fs, window_type, window_width, overlap)
 
@@ -916,9 +1178,9 @@ class MainWindow(QMainWindow):
             x = window.model.f
 
             window.spec_widget.plot(x, y,
-                                  pen={'width': 2, 'color': QtGui.QColor(
-                                      0, 0, 255, 127), 'style': QtCore.Qt.SolidLine},
-                                  name='СПМ')
+                                    pen={'width': 2, 'color': QtGui.QColor(
+                                        0, 0, 255, 127), 'style': QtCore.Qt.SolidLine},
+                                    name='СПМ')
 
             # Вывод оригинала, если стоит checkbox
             # if self.data_orig_checkbox.isChecked():
@@ -956,7 +1218,6 @@ class MainWindow(QMainWindow):
         self.model.pca_compute(window, start, end, method)
 
         self.pca_plot()
-
 
     def pca_plot(self):
 

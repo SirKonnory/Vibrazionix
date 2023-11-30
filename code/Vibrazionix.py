@@ -12,7 +12,7 @@ if __name__ == "__main__":
 
     run = vibro_view.MainWindow()
 
-    icon1 = QIcon("iconka.png")
+    icon1 = QIcon("../images/iconka.png")
     run.setWindowIcon(icon1)
 
     icon_size = QSize(200, 200)

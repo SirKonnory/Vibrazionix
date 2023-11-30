@@ -3,15 +3,19 @@ from scipy import signal, fft
 from scipy.linalg import toeplitz, eig
 from config import Config
 
-
 config = Config()
 
 
 class ModelClass:
 
-    def __init__(self, data, fs):
+    def __init__(self):
 
         self.observers = []
+        self.data = None
+        self.fs = None
+        self.origin_data = None
+
+    def load_data(self, data, fs):
 
         self.data = data
         self.origin_data = np.copy(data)
@@ -49,7 +53,7 @@ class ModelClass:
         self.data_std = np.around(
             np.std(self.data, axis=0), decimals=config.round_decimal)
         self.data_rms = np.around(
-            np.sqrt(np.mean(self.data**2, axis=0)), decimals=config.round_decimal)
+            np.sqrt(np.mean(self.data ** 2, axis=0)), decimals=config.round_decimal)
         self.data_mean = np.around(
             np.mean(self.data, axis=0), decimals=config.round_decimal)
         self.data_var = np.around(
@@ -65,9 +69,9 @@ class ModelClass:
         if self.actual_col:
             N = self.data.shape[0]
 
-            self.fft = np.abs(fft.fft(self.data) / N)[0:N//2]
+            self.fft = np.abs(fft.fft2(self.data, axes = 0) / N)[0:N // 2]
 
-            self.f = fft.fftfreq(N, 1/self.fs)[:N//2]
+            self.f = fft.fftfreq(N, 1 / self.fs)[:N // 2]
 
     def get_psd(self, fs, window_type=None, window_width=None, overlap=None):
 
@@ -88,59 +92,33 @@ class ModelClass:
 
         # Sxx, f_a, t_a, fig = pyspecgram.pyqtspecgram(self.data, window_size, fs, Fc=0)
 
-    def filt_signal_data(self, lowcut_f, topcut_f, df, vnesh_diapazon_udalyaem):
+    def filt_signal_data(self, lowcut_f, topcut_f, rank, df):
 
-        if vnesh_diapazon_udalyaem:
+        if lowcut_f.isdigit() and (not topcut_f.isdigit()):
 
-            if lowcut_f.isdigit() and (not topcut_f.isdigit()):
+            lowcut_f = int(lowcut_f) / (df / 2)
+            sos = signal.butter(rank, lowcut_f, btype='lowpass', output='sos')
 
-                lowcut_f = int(lowcut_f) / (df / 2)
-                sos = signal.butter(6, lowcut_f, btype='lowpass', output='sos')
+            self.data = signal.sosfilt(sos, self.data, axis=0)
 
-                self.data = signal.sosfilt(sos, self.data)
+        elif topcut_f.isdigit() and (not lowcut_f.isdigit()):
 
-            elif topcut_f.isdigit() and (not lowcut_f.isdigit()):
+            topcut_f = int(topcut_f) / (df / 2)
+            sos = signal.butter(
+                rank, topcut_f, btype='highpass', output='sos')
 
-                topcut_f = int(topcut_f) / (df / 2)
-                sos = signal.butter(
-                    6, topcut_f, btype='highpass', output='sos')
+            self.data = signal.sosfilt(sos, self.data, axis=0)
 
-                self.data = signal.sosfilt(sos, self.data)
+        elif topcut_f.isdigit() and lowcut_f.isdigit():
 
-            elif topcut_f.isdigit() and lowcut_f.isdigit():
+            lowcut_f = int(lowcut_f) / (df / 2)
+            topcut_f = int(topcut_f) / (df / 2)
+            sos = signal.butter(
+                rank, [lowcut_f, topcut_f], btype='bandstop', output='sos')
 
-                lowcut_f = int(lowcut_f) / (df / 2)
-                topcut_f = int(topcut_f) / (df / 2)
-                sos = signal.butter(
-                    6, [lowcut_f, topcut_f], btype='bandstop', output='sos')
+            self.data = signal.sosfilt(sos, self.data, axis = 0)
 
-                self.data = signal.sosfilt(sos, self.data)
 
-        else:
-
-            if lowcut_f.isdigit() and (not topcut_f.isdigit()):
-
-                lowcut_f = int(lowcut_f) / (df/2)
-                sos = signal.butter(
-                    6, lowcut_f, btype='highpass', output='sos')
-
-                self.data = signal.sosfilt(sos, self.data)
-
-            elif topcut_f.isdigit() and (not lowcut_f.isdigit()):
-
-                topcut_f = int(topcut_f) / (df/2)
-                sos = signal.butter(6, topcut_f, btype='lowpass', output='sos')
-
-                self.data = signal.sosfilt(sos, self.data)
-
-            elif topcut_f.isdigit() and lowcut_f.isdigit():
-
-                lowcut_f = int(lowcut_f) / (df / 2)
-                topcut_f = int(topcut_f) / (df / 2)
-                sos = signal.butter(
-                    6, [lowcut_f, topcut_f], btype='bandpass', output='sos')
-
-                self.data = signal.sosfilt(sos, self.data)
 
     def reduce_signal_data(self, k):
 
@@ -153,7 +131,6 @@ class ModelClass:
     def quantization_signal_data(self, levels):
 
         if levels.isdigit():
-
             levels = int(levels)
 
             # Определение диапазона сигнала
@@ -200,13 +177,13 @@ class ModelClass:
             for m in range(M):
                 Y[:, m] = X[m: N - M + m + 1].reshape(-1)
 
-            self.cov = np.dot(Y.T, Y) / (N-M+1)
+            self.cov = np.dot(Y.T, Y) / (N - M + 1)
 
         else:  # !!!
             # Метод матрицы Тёплица
 
             covX = np.correlate(X, X, mode='full') / len(X)
-            covX = covX[len(X)-M:len(X)]
+            covX = covX[len(X) - M:len(X)]
 
             self.cov = toeplitz(covX)
 
@@ -233,7 +210,28 @@ class ModelClass:
         else:
             self.recovered = np.sum(self.rc[:, :], axis=1)
 
-    def generate_data(self):
-        self.data = np.arange(0, 10000)
-        self.data.reshape(10000,10)
+    def generate_data(self, a: list, f: list, p: list, noise: float, t: float, fs: float, n: int):
+        self.data = []
 
+        self.fs = fs
+        dt = 1 / self.fs
+
+        self.t = np.arange(0, t, dt)
+
+        np.sin(60 * np.pi / 180 + 90 * np.pi / 180)
+
+        # sin_1 = a[0] * np.sin(f[0] * np.pi / 180 * self.t + p[0] * np.pi / 180)
+
+        for i in range(n):
+            sum_sin = 0
+            for j in range(3):
+                sin = a[j] * np.sin(2 * np.pi * (f[j] * self.t + p[j] / 2 / np.pi))
+                sum_sin += sin
+            noise_sum = noise * np.random.randn(int(t / dt))
+            self.data.append(sum_sin + noise_sum)
+
+        self.data = np.transpose(np.array(self.data))
+
+        self.origin_data = np.copy(self.data)
+
+        self.actual_col = [i for i in range(self.data.shape[1])]

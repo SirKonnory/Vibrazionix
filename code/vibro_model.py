@@ -10,6 +10,11 @@ class ModelClass:
 
     def __init__(self):
 
+        self.ff = None
+        self.tt = None
+        self.zz = None
+        self.psd = None
+        self.f = None
         self.observers = []
         self.data = None
         self.fs = None
@@ -69,24 +74,37 @@ class ModelClass:
         if self.actual_col:
             N = self.data.shape[0]
 
-            self.fft = np.abs(fft.fft2(self.data, axes = 0) / N)[0:N // 2]
+            self.fft = np.abs(fft.fft2(self.data, axes=0 ) / N)[0:N // 2]
 
             self.f = fft.fftfreq(N, 1 / self.fs)[:N // 2]
 
-    def get_psd(self, fs, window_type=None, window_width=None, overlap=None):
+    def get_stft(self, data, fs, window_type, window_size, overlap):
 
-        self.f, self.psd = signal.welch(self.data, fs, window=window_type,
-                                        nperseg=window_width, noverlap=overlap)
+        if self.actual_col:
 
-    def get_spectogram(self, fs, window_size, overlap, windoe_type):
+            self.ff, self.tt, self.zz = signal.stft(data, fs, window_type, window_size, overlap)
+            self.zz = np.abs(self.zz)
+
+    def get_psd(self, fs, window_type, window_width, overlap):
+
+        self.psd = []
+
+        for i in range(self.data.shape[1]):
+
+            self.f, temp = signal.welch(self.data[:, i], fs, window_type, window_width, overlap)
+            self.psd.append(temp)
+
+        self.psd = np.array(self.psd).transpose()
+
+    def get_spectogram(self, fs, window_size, overlap, window_type):
 
         self.ff, self.tt, self.spectorgam = signal.spectrogram(self.data[0], fs=fs,
-                                                               window=windoe_type, nperseg=window_size,
+                                                               window=window_type, nperseg=window_size,
                                                                noverlap=int(window_size * overlap / 100))
 
         for i in range(1, self.data.shape[0]):
             _, _, spectorgam_temp = signal.spectrogram(self.data[i], fs,
-                                                       window=windoe_type, nperseg=window_size,
+                                                       window=window_type, nperseg=window_size,
                                                        noverlap=int(window_size * overlap / 100))
             self.spectorgam = np.vstack([self.spectorgam, spectorgam_temp])
 
@@ -116,9 +134,7 @@ class ModelClass:
             sos = signal.butter(
                 rank, [lowcut_f, topcut_f], btype='bandstop', output='sos')
 
-            self.data = signal.sosfilt(sos, self.data, axis = 0)
-
-
+            self.data = signal.sosfilt(sos, self.data, axis=0)
 
     def reduce_signal_data(self, k):
 
@@ -159,16 +175,16 @@ class ModelClass:
             self.data = temp
             self.notify_observers()
 
-    def pca_compute(self, M, start, end, method):
+    def pca_compute(self, data, M, start, end, method):
 
         N = self.data.shape[0]
 
-        X = self.data.copy()
+        X = data
 
         # X = X - np.mean(X)
         # X = X / np.std(X, ddof=1)
 
-        if method == 0:
+        if True:  # method == 0
 
             # Метод Гусеницы
 
@@ -181,7 +197,6 @@ class ModelClass:
 
         else:  # !!!
             # Метод матрицы Тёплица
-
             covX = np.correlate(X, X, mode='full') / len(X)
             covX = covX[len(X) - M:len(X)]
 

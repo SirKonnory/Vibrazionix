@@ -10,6 +10,20 @@ class ModelClass:
 
     def __init__(self):
 
+        self.recovered = None
+        self.fft = None
+        self.data_75_percent = None
+        self.data_50_percent = None
+        self.data_25_percent = None
+        self.data_var = None
+        self.data_mean = None
+        self.data_rms = None
+        self.data_std = None
+        self.data_max = None
+        self.data_min = None
+        self.actual_col = None
+        self.t = None
+        self.pc = None
         self.ff = None
         self.tt = None
         self.zz = None
@@ -31,23 +45,13 @@ class ModelClass:
         self.t = np.arange(0, self.data.shape[0] * dt, dt)
         self.actual_col = [i for i in range(self.data.shape[1])]
 
-    def notify_observers(self):
-        pass
-
-    def register(self, observer):
-        self.observers.append(observer)
-
     def delete_data(self, col):
-
         self.actual_col.remove(col)
-
         self.data = self.origin_data[:, self.actual_col]
-        # self.notify_observers()
 
     def insert_data(self, col):
         self.actual_col.append(col)
         self.data = self.origin_data[:, self.actual_col]
-        # self.notify_observers()
 
     def calc_integrate_param(self):
 
@@ -74,7 +78,7 @@ class ModelClass:
         if self.actual_col:
             N = self.data.shape[0]
 
-            self.fft = np.abs(fft.fft2(self.data, axes=0 ) / N)[0:N // 2]
+            self.fft = np.abs(fft.fft2(self.data, axes=[0]) / N)[0:N // 2]
 
             self.f = fft.fftfreq(N, 1 / self.fs)[:N // 2]
 
@@ -96,7 +100,7 @@ class ModelClass:
 
         self.psd = np.array(self.psd).transpose()
 
-    def get_spectogram(self, fs, window_size, overlap, window_type):
+    def get_spectogram(self, data, fs, window_type, window_size, overlap):
 
         self.ff, self.tt, self.spectorgam = signal.spectrogram(self.data[0], fs=fs,
                                                                window=window_type, nperseg=window_size,
@@ -142,31 +146,24 @@ class ModelClass:
             k = int(k)
             self.t = self.t[::k]
             self.data = self.data[:, ::k]
-            self.notify_observers()
+            # self.notify_observers()
 
     def quantization_signal_data(self, levels):
 
         if levels.isdigit():
             levels = int(levels)
-
-            # Определение диапазона сигнала
             signal_range = np.max(self.data) - np.min(self.data)
-
-            # Определение шага квантования
             step = signal_range / (levels - 1)
 
-            # Квантование сигнала
             self.data = np.round(self.data / step) * step
-            self.notify_observers()
+            # self.notify_observers()
 
     def smooth_signal_data(self, window_size):
 
         if window_size.isdigit():
 
             window_size = int(window_size)
-
             window = np.ones(window_size) / window_size
-
             temp = np.array([np.convolve(self.data[0], window, mode='same')])
 
             for i in range(1, self.data.shape[0]):
@@ -178,16 +175,13 @@ class ModelClass:
     def pca_compute(self, data, M, start, end, method):
 
         N = self.data.shape[0]
-
         X = data
 
         # X = X - np.mean(X)
         # X = X / np.std(X, ddof=1)
 
         if True:  # method == 0
-
             # Метод Гусеницы
-
             Y = np.zeros((N - M + 1, M))
 
             for m in range(M):
@@ -195,12 +189,12 @@ class ModelClass:
 
             self.cov = np.dot(Y.T, Y) / (N - M + 1)
 
-        else:  # !!!
-            # Метод матрицы Тёплица
-            covX = np.correlate(X, X, mode='full') / len(X)
-            covX = covX[len(X) - M:len(X)]
-
-            self.cov = toeplitz(covX)
+        # else:
+        #     # Метод матрицы Тёплица
+        #     covX = np.correlate(X, X, mode='full') / len(X)
+        #     covX = covX[len(X) - M:len(X)]
+        #
+        #     self.cov = toeplitz(covX)
 
         # Вычисление собственных векторов и собственных значений
         self.lamb, self.rho = eig(self.cov)
@@ -234,8 +228,6 @@ class ModelClass:
         self.t = np.arange(0, t, dt)
 
         np.sin(60 * np.pi / 180 + 90 * np.pi / 180)
-
-        # sin_1 = a[0] * np.sin(f[0] * np.pi / 180 * self.t + p[0] * np.pi / 180)
 
         for i in range(n):
             sum_sin = 0

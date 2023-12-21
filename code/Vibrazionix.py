@@ -15,12 +15,12 @@ if __name__ == "__main__":
     icon1 = QIcon("../images/iconka.png")
     run.setWindowIcon(icon1)
 
-    icon_size = QSize(200, 200)
+    icon_size = QSize(300, 300)
     run.setIconSize(icon_size)
-
+    run.resize(1280, 720)
     run.showMaximized()
 
-    run.setWindowTitle('Vibrazionix')
+    run.setWindowTitle('Вибрационикс')
     run.show()
 
     app.exec()

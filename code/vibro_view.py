@@ -17,6 +17,29 @@ import numpy as np
 config = Config()
 
 
+class DialogReduce(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        label_coeff = QLabel('Коэффициент прореживания сигнала')
+        self.edit_coeff = QLineEdit('2')
+
+        ok_button = QPushButton("ОК", self)
+        ok_button.clicked.connect(self.accept)
+
+        cancel_button = QPushButton("Отмена", self)
+        cancel_button.clicked.connect(self.reject)
+
+        lay_dialog = QGridLayout()
+        lay_dialog.addWidget(label_coeff, 0, 0)
+        lay_dialog.addWidget(self.edit_coeff, 0, 1)
+
+        lay_dialog.addWidget(ok_button, 2, 0)
+        lay_dialog.addWidget(cancel_button, 2, 1)
+
+        self.setLayout(lay_dialog)
+
+
 class DialogQuant(QDialog):
     def __init__(self):
         super().__init__()
@@ -202,14 +225,14 @@ class DataPlotter(pg.PlotWidget):
         self.curves = []
         self.setBackground("w")
 
-    def plot_data(self, x, y, actual_col):
+    def plot_data(self, x, y, actual_col, name):
         if y.any:
 
             for i, col in enumerate(actual_col):
                 color = QtGui.QColor(config.default_colors[col])
                 self.curves.append(self.plot(x, y[:, i],
                                              pen={'width': 2, 'color': color},
-                                             name='Сигнал'))
+                                             name=name[i]))
         else:
             self.clear()
 
@@ -231,14 +254,7 @@ class DataPlotter(pg.PlotWidget):
         self.addItem(img)
 
 
-
-    def update_data(self, new_data, num_col):
-        print('Графики пытаются обновиться')
-
-
 class Table(QTableWidget):
-    def update_data(self, new_data):
-        print('Таблица {} обновлена'.format(str(self)))
 
     def reinit(self, is_model_table):
         self.setRowCount(0)
@@ -253,15 +269,15 @@ class Table(QTableWidget):
             self.setColumnCount(config.init_channel_count)
 
             init_channel_name = [
-                'Channel {}'.format(i + 1) for i in range(self.columnCount())]
+                'Канал №{}'.format(i + 1) for i in range(self.columnCount())]
 
         else:
 
             self.setRowCount(config.init_channel_count)
 
-            init_channel_name = ['Name channel', 'Type', 'Unit', 'Min', 'Max',
-                                 "RMS", "Mean", 'Variance', 'First quartile',
-                                 'Median', 'Third quartile']
+            init_channel_name = ['Имя канала', 'Тип', 'Единицы измеренеия', 'Мин', 'Макс',
+                                 "СКЗ", "Среднее", 'Дисперсия', '0,25-квантиль',
+                                 'Медиана', '0,75-квантиль']
 
             self.setColumnCount(len(init_channel_name))
 
@@ -286,15 +302,15 @@ class Table(QTableWidget):
             self.setColumnCount(config.init_channel_count)
 
             init_channel_name = [
-                'Channel {}'.format(i + 1) for i in range(self.columnCount())]
+                'Канал №{}'.format(i + 1) for i in range(self.columnCount())]
 
         else:
 
             self.setRowCount(config.init_channel_count)
 
-            init_channel_name = ['Name channel', 'Type', 'Unit', 'Min', 'Max',
-                                 "RMS", "Mean", 'Variance', 'First quartile',
-                                 'Median', 'Third quartile']
+            init_channel_name = ['Имя канала', 'Тип', 'Единицы измеренеия', 'Мин', 'Макс',
+                                 "СКЗ", "Среднее", 'Дисперсия', '0,25-квантиль',
+                                 'Медиана', '0,75-квантиль']
 
             self.setColumnCount(len(init_channel_name))
 
@@ -333,19 +349,6 @@ class Table(QTableWidget):
 
             fill_table(self, data.values)
 
-    # def get_data(self, selected_indexes):  # !!!
-    #
-    #     selected_indexes = self.selectionModel().selectedIndexes()
-    #     for index in selected_indexes:
-    #         row = index.row()
-    #         col = index.column()
-    #         item = self.model.item(row, col)
-    #
-    #         if item is not None:
-    #
-    #             data = item.text()
-    #             print(f'Содержимое в строке {row}, столбце {col}: {data}')
-
     def create_check_box(self):
         self.insertRow(0)
 
@@ -361,8 +364,8 @@ class Table(QTableWidget):
 
         old_header = self.horizontalHeaderItem(index).text()
         new_header, ok = QInputDialog.getText(self,
-                                              'Change header label for column %d' % index,
-                                              'Header:',
+                                              'Изменение заголовка столбца №%d' % index,
+                                              'Загоовок:',
                                               QLineEdit.Normal,
                                               old_header)
         dialog = QInputDialog()
@@ -388,7 +391,7 @@ class MainWindow(QMainWindow):
 
                 elapsed_time = (end_time - start_time)
 
-                log_entry = '{} : {},  Elapsed time: {} c\n' \
+                log_entry = '{} : {},  Затраченное время: {} c\n' \
                     .format(start_time.strftime("%Y-%m-%d %H:%M:%S"),
                             suffix,
                             round(elapsed_time.total_seconds(), config.round_decimal))
@@ -406,6 +409,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.spec_war_expl = 0
+        self.channel_for_pca = None
         self.pca_method_combo = None
         self.pca_width_edit = None
         self.pca_method_combo = None
@@ -426,7 +431,7 @@ class MainWindow(QMainWindow):
         self.pca_cov_widget = None
         self.pca_data_combo = None
         self.pca_tab = None
-        self.data_genereted = False
+        self._data_genereted = False
         self.model = ModelClass()
         self.generated_data = False
         self.spec_tab = None
@@ -455,12 +460,10 @@ class MainWindow(QMainWindow):
 
             button_action_open = QtGui.QAction(QtGui.QIcon(""), '&Открыть', self)
             # button_action_open.setStatusTip('Открыть файл с данными для обработки и анализа')
-            button_action_open.setShortcut('Ctrl+F')
             button_action_open.triggered.connect(self.data_click_load)
 
             button_action_exit = QtGui.QAction(QtGui.QIcon(""), '&Выйти', self)
             # button_action_exit.setStatusTip('Покинуть "Вибрационикс"')
-            button_action_exit.setShortcut('Ctrl+Q')
             button_action_exit.triggered.connect(QApplication.quit)
 
             button_action_help = QtGui.QAction(QtGui.QIcon(""), '&Помощь', self)
@@ -470,12 +473,13 @@ class MainWindow(QMainWindow):
 
             button_action_clear = QtGui.QAction(
                 QtGui.QIcon(""), '&Очистить все', self)
-            button_action_clear.triggered.connect(self.menu_clear)
+            button_action_clear.triggered.connect(self.status_bar_update(
+                'Выполняется удаление данных...', 'Удаление данных')(self.menu_clear)
+                                                  )
 
             button_action_generate = QtGui.QAction(
                 QtGui.QIcon(""), '&Сгенерировать данные', self)
             button_action_generate.triggered.connect(self.menu_generate)
-            button_action_generate.setShortcut('Ctrl+G')
 
             button_action_filt = QtGui.QAction(
                 QtGui.QIcon(""), '&Фильтрация', self)
@@ -489,24 +493,29 @@ class MainWindow(QMainWindow):
                 QtGui.QIcon(""), '&Квантование', self)
             button_action_quant.triggered.connect(self.menu_quant)
 
-            file_menu = menubar.addMenu('&File')
+            button_action_reduce = QtGui.QAction(
+                QtGui.QIcon(""), '&Прореживание', self)
+            button_action_reduce.triggered.connect(self.menu_reduce)
+
+            file_menu = menubar.addMenu('&Файл')
             file_menu.addAction(button_action_open)
-            file_menu.addSeparator()
-            file_menu.addAction(button_action_exit)
-            file_menu.addSeparator()
-            file_menu.addAction(button_action_help)
             file_menu.addSeparator()
             file_menu.addAction(button_action_generate)
             file_menu.addSeparator()
             file_menu.addAction(button_action_clear)
+            file_menu.addSeparator()
+            file_menu.addAction(button_action_help)
+            file_menu.addSeparator()
+            file_menu.addAction(button_action_exit)
 
-            file_menu = menubar.addMenu('&Tools')
+            file_menu = menubar.addMenu('&Инструменты')
             file_menu.addAction(button_action_filt)
             file_menu.addSeparator()
             file_menu.addAction(button_action_smooth)
             file_menu.addSeparator()
             file_menu.addAction(button_action_quant)
             file_menu.addSeparator()
+            file_menu.addAction(button_action_reduce)
 
         def create_data_tab():
             # Создаем таблицы
@@ -514,27 +523,27 @@ class MainWindow(QMainWindow):
             self.data_param_table = Table(False)
 
             # Мастер чек-мать-его-бокс
-            self.data_master_checkbox = QCheckBox("Turn all")
+            self.data_master_checkbox = QCheckBox("Включить/отключить все")
             self.data_master_checkbox.setChecked(True)
             self.data_master_checkbox.stateChanged.connect(self.data_toggle_all)
 
-            data_file_label = QLabel('Open file:')
+            data_file_label = QLabel('Открыть файл:')
             data_file_label.setMaximumWidth(100)
 
             self.data_filepath_label = QLabel('')
-            data_sample_freq_label = QLabel("Sample frequency")
-            data_numb_channel_label = QLabel("Number of channels:")
-            data_len_data_label = QLabel("Number of time step:")
+            data_sample_freq_label = QLabel("Частота дискретизации:")
+            data_numb_channel_label = QLabel("Число каналов:")
+            data_len_data_label = QLabel("Число отсчетов:")
             self.data_numb_channel_label1 = QLabel("...")
             self.data_len_data_label1 = QLabel("...")
 
             # Создаем кнопки
-            data_load_button = QPushButton("Load data")
+            data_load_button = QPushButton("Загрузить данные")
             data_load_button.setMaximumWidth(200)
             data_load_button.clicked.connect(self.data_click_load)
             data_load_button.setToolTip('Открыть расположение файла')
 
-            data_calc_button = QPushButton("Calculate integral parameters")
+            data_calc_button = QPushButton("Расчет статистических параметров")
             data_calc_button.setMaximumWidth(200)
             data_calc_button.clicked.connect(self.data_click_calc)
             data_calc_button.setToolTip('Рассчитать статистические параметры')
@@ -559,7 +568,7 @@ class MainWindow(QMainWindow):
 
             data_lay = QVBoxLayout()
 
-            data_file_group = QGroupBox('Signal initialization')
+            data_file_group = QGroupBox('Инициализация сигнала')
 
             data_file_grouplay = QHBoxLayout()
 
@@ -619,7 +628,7 @@ class MainWindow(QMainWindow):
             # Чек мать его бокс
             self.spec_window_checkbox = QCheckBox('Использовать оконные преобразования')
             self.spec_curve_checkbox = QCheckBox('Сравнить с кривыми вибраций')
-            self.spec_war_checkbox = QCheckBox('Сравнить с военным ГОСТом')
+            self.spec_war_checkbox = QCheckBox('Сравнение по зонам самолета')
 
             self.spec_window_checkbox.setEnabled(True)
             self.spec_curve_checkbox.setEnabled(True)
@@ -662,6 +671,10 @@ class MainWindow(QMainWindow):
             spec_war_combo = QComboBox()
             spec_war_combo.addItems(['А1', 'А', 'Б', 'В', 'Г', 'Д', 'Ж', 'Е'])
             spec_war_combo.currentIndexChanged.connect(self.spec_switch_zone)
+
+            spec_typewar_combo = QComboBox()
+            spec_typewar_combo.addItems(['Полетные режимы', 'Взлет/Посадка'])
+            spec_typewar_combo.currentIndexChanged.connect(self.spec_switch_wartype)
 
             self.spec_channel_combo = QComboBox()
             self.spec_channel_combo.setEnabled(False)
@@ -708,7 +721,6 @@ class MainWindow(QMainWindow):
 
             spec_option_lay.addWidget(self.spec_window_group)
 
-
             # --------------------------------------------
             spec_option_lay.addWidget(self.empty_widget)
             spec_option_lay.addWidget(self.spec_curve_checkbox)
@@ -726,7 +738,7 @@ class MainWindow(QMainWindow):
             # --------------------------------------------
             spec_option_lay.addWidget(self.empty_widget)
             spec_option_lay.addWidget(self.spec_war_checkbox)
-            self.spec_war_group = QGroupBox('Сравнение с военным ГОСТом (...)')
+            self.spec_war_group = QGroupBox('Сравнение с нормами по ОТТ ВВС-86')
             self.spec_war_group.setEnabled(False)
 
             self.spec_war_groupLay = QVBoxLayout()
@@ -745,7 +757,7 @@ class MainWindow(QMainWindow):
 
             spec_calc_grouplay.addWidget(radio_psd)
             spec_calc_grouplay.addWidget(radio_fft)
-            spec_calc_grouplay.addWidget(radio_spectogramm)
+            # spec_calc_grouplay.addWidget(radio_spectogramm)
             spec_calc_grouplay.addWidget(self.spec_channel_combo)
 
             spec_calc_grouplay.addWidget(spec_calc_button)
@@ -853,23 +865,23 @@ class MainWindow(QMainWindow):
             # Группа постоработки
             pca_post_group = QGroupBox(' Обработка результатов')
 
-            pca_post_groupLay = QGridLayout(self.widget)
+            pca_post_grouplay = QGridLayout(self.widget)
 
-            pca_post_groupLay.addWidget(pca_count_label, 0, 0, 1, 4)
+            pca_post_grouplay.addWidget(pca_count_label, 0, 0, 1, 4)
 
-            pca_post_groupLay.addWidget(pca_start_label, 1, 0)
-            pca_post_groupLay.addWidget(self.pca_start_edit, 1, 1)
-            pca_post_groupLay.addWidget(pca_end_label, 1, 2)
-            pca_post_groupLay.addWidget(self.pca_end_edit, 1, 3)
-            pca_post_groupLay.addWidget(pca_replot_button, 2, 0, 1, 2)
-            pca_post_groupLay.addWidget(pca_update, 2, 2, 1, 2)
+            pca_post_grouplay.addWidget(pca_start_label, 1, 0)
+            pca_post_grouplay.addWidget(self.pca_start_edit, 1, 1)
+            pca_post_grouplay.addWidget(pca_end_label, 1, 2)
+            pca_post_grouplay.addWidget(self.pca_end_edit, 1, 3)
+            pca_post_grouplay.addWidget(pca_replot_button, 2, 0, 1, 2)
+            pca_post_grouplay.addWidget(pca_update, 2, 2, 1, 2)
 
-            pca_post_groupLay.setColumnStretch(0, 0.2)
-            pca_post_groupLay.setColumnStretch(1, 1)
-            pca_post_groupLay.setColumnStretch(2, 0.2)
-            pca_post_groupLay.setColumnStretch(3, 1)
+            pca_post_grouplay.setColumnStretch(0, 0.2)
+            pca_post_grouplay.setColumnStretch(1, 1)
+            pca_post_grouplay.setColumnStretch(2, 0.2)
+            pca_post_grouplay.setColumnStretch(3, 1)
 
-            pca_post_group.setLayout(pca_post_groupLay)
+            pca_post_group.setLayout(pca_post_grouplay)
 
             pca_left_lay.addWidget(pca_option_group)
             pca_left_lay.addWidget(pca_post_group)
@@ -897,16 +909,16 @@ class MainWindow(QMainWindow):
 
             data_tab = QWidget()
             data_tab.setLayout(self.data_global_lay)
-            tab_widget.addTab(data_tab, "Preprocessor")
+            tab_widget.addTab(data_tab, "Инициализация данных")
 
             self.pca_tab = QWidget()
             self.pca_tab.setLayout(self.pca_lay)
-            tab_widget.addTab(self.pca_tab, "Principal component analysis")
+            tab_widget.addTab(self.pca_tab, "Метод главных компонент")
             self.pca_tab.setEnabled(False)
 
             self.spec_tab = QWidget()
             self.spec_tab.setLayout(self.spec_lay)
-            tab_widget.addTab(self.spec_tab, "Spectral analysis")
+            tab_widget.addTab(self.spec_tab, "Спектральный анализ")
             self.spec_tab.setEnabled(False)
 
             # self.damage_tab = QWidget()
@@ -936,6 +948,7 @@ class MainWindow(QMainWindow):
         create_log()
         create_tabs()
 
+    @status_bar_update('Выполняется мольба о помощи...', 'Просьба о помощи')
     def menu_reference(self):
 
         msg_box = QMessageBox()
@@ -946,7 +959,6 @@ class MainWindow(QMainWindow):
 
         _ = msg_box.exec()
 
-    @status_bar_update('Выполняется удаление данных...', 'Удаление данных')
     def menu_clear(self):
 
         self.data_model_table.reinit(True)
@@ -954,9 +966,15 @@ class MainWindow(QMainWindow):
 
         self.data_plot_widget.clear()
         self.data_spec_widget.clear()
+        self.spec_widget.clear()
+        self.pca_cov_widget.clear()
+        self.pca_pc_widget.clear()
+        self.pca_signal_widget.clear()
+        self.pca_values_widget.clear()
 
         self.model = ModelClass()
 
+    @status_bar_update('Выполняется генерация данных...', 'Генерация данных')
     def menu_generate(self):
 
         dialog = DialogProcessor()
@@ -975,12 +993,13 @@ class MainWindow(QMainWindow):
 
             self.model.generate_data(a, f, p, noise, t, fs, n)
 
-            self.data_genereted = True
+            self._data_genereted = True
             self.data_fs_edit.setText(str(round(fs)))
             self.data_click_load()
 
-        self.data_genereted = False
+        self._data_genereted = False
 
+    @status_bar_update('Выполняется фильтрация данных...', 'Фильтрация данных')
     def menu_filter(self):
 
         dialog = DialogFilter()
@@ -996,6 +1015,7 @@ class MainWindow(QMainWindow):
 
             self.data_plot()
 
+    @status_bar_update('Выполняется сглаживание данных...', 'Сглаживание данных')
     def menu_smooth(self):
         dialog = DialogSmooth()
 
@@ -1019,6 +1039,19 @@ class MainWindow(QMainWindow):
 
             self.data_plot()
 
+    @status_bar_update('Выполняется прореживание данных...', 'Прореживание данных')
+    def menu_reduce(self):
+
+        dialog = DialogReduce()
+
+        result = dialog.exec()
+
+        if result:
+            coeff = dialog.edit_coeff.text()
+            self.model.reduce_signal_data(coeff)
+
+            self.data_plot()
+
     @status_bar_update('Выполняется создание отчета...', 'Создание отчета')
     def menu_report(self):
         pass
@@ -1029,7 +1062,7 @@ class MainWindow(QMainWindow):
         self.data_model_table.reinit(True)
         self.data_param_table.reinit(False)
 
-        if not self.data_genereted:
+        if not self._data_genereted:
 
             f_name, f_type = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*);;Text Document (*.txt)"
                                                                                 ";;CSV File(*.csv);;Excel Binary File"
@@ -1065,7 +1098,7 @@ class MainWindow(QMainWindow):
                 data.head(config.channel_head_count))
 
         self.channel_name = data.columns.to_list()  # !!!
-        # print(data.columns.to_list())
+
         self.data_len_data_label1.setText(str(self.model.data.shape[0]))
         self.data_numb_channel_label1.setText(
             str(self.model.data.shape[1]))
@@ -1078,7 +1111,7 @@ class MainWindow(QMainWindow):
         self.spec_tab.setEnabled(True)
         self.pca_tab.setEnabled(True)
 
-    @status_bar_update('Выполняется расчет параметров...', 'Расчет параметров')
+    @status_bar_update('Выполняется расчет интегральных параметров...', 'Расчет интегральных параметров')
     def data_click_calc(self):
         # Clear table
         # self.data_param_table.clear()
@@ -1125,7 +1158,6 @@ class MainWindow(QMainWindow):
 
         self.data_update_head_color()
 
-    @status_bar_update('Выполняется построение графиков...', 'Построение графиков')
     def data_plot(self):
         self.pca_data_combo.clear()
         self.spec_channel_combo.clear()
@@ -1144,7 +1176,7 @@ class MainWindow(QMainWindow):
                                        units_font=QtGui.QFont("Arial", 12))
 
         self.data_plot_widget.plot_data(
-            self.model.t, self.model.data, self.model.actual_col)
+            self.model.t, self.model.data, self.model.actual_col, self.channel_name)
         # ======================================================================
         self.data_spec_widget.setLabel('bottom', 'Freq', 'Hz',
                                        title_font=QtGui.QFont("Arial", 14),
@@ -1158,7 +1190,7 @@ class MainWindow(QMainWindow):
         self.data_spec_widget.showGrid(x=True, y=True, alpha=0.3)
 
         self.data_spec_widget.plot_data(
-            self.model.f, self.model.fft, self.model.actual_col)
+            self.model.f, self.model.fft, self.model.actual_col, self.channel_name)
         # ======================================================================
         self.data_update_head_color()
 
@@ -1188,7 +1220,6 @@ class MainWindow(QMainWindow):
             fs = int(self.data_fs_edit.text())
 
             if self.spec_curve_checkbox.isChecked():
-
                 x = np.array(self.spec_typecurve[0])
                 y = np.array(self.spec_typecurve[1]) * self.spec_typevibro
 
@@ -1212,7 +1243,7 @@ class MainWindow(QMainWindow):
             y = self.model.psd
             x = self.model.f
 
-            self.spec_widget.plot_data(x, y, self.model.actual_col)
+            self.spec_widget.plot_data(x, y, self.model.actual_col, self.channel_name)
 
         def stft():
             self.spec_widget.clear()
@@ -1235,13 +1266,25 @@ class MainWindow(QMainWindow):
             self.spec_widget.plot_mesh(self.model.tt, self.model.ff, self.model.zz)
 
         def spectogramm():
-            pass
 
-        # if self.spec_width_window_edit.text().isdigit():
-        #     window = int(self.spec_width_window_edit.text())
-        #
-        # if self.spec_overlap_edit.text().isdigit():
-        #     overlap = int(self.spec_overlap_edit.text())
+            self.spec_widget.clear()
+
+            data = self.model.data[:, self.spec_channel_combo.currentIndex()]
+            fs = int(self.data_fs_edit.text())
+
+            if self.spec_window_checkbox.isChecked():
+
+                window_width = int(self.spec_width_window_edit.text())
+                overlap = int(self.spec_overlap_edit.text())
+                window_type = self.spec_type_window
+
+            else:
+                window_width = None
+                overlap = None
+                window_type = 'hann'
+
+            self.model.get_spectogram(data, fs, window_type, window_width, overlap)
+            self.spec_widget.plot_mesh(self.model.tt, self.model.ff, self.model.zz)
 
         if self.spec_analysis_type == 1:
             psd()
@@ -1300,19 +1343,24 @@ class MainWindow(QMainWindow):
         curve = list(config.curve.values())
         self.spec_typecurve = curve[index]
 
-    def spec_switch_zone(self, index): # !!!
+    def spec_switch_zone(self, index):  # !!!
 
         zone = list(config.zone.values())
         self.spec_typewar = zone[index]
 
-    def spec_swich_analysis(self, type):
+    def spec_switch_wartype(self, index):
 
-        if type == 2 or type == 3:
+        list_of_types = [0, 1]
+        self.spec_war_expl = list_of_types[index]
+
+    def spec_swich_analysis(self, vibro_type):
+
+        if vibro_type == 2 or vibro_type == 3:
             self.spec_channel_combo.setEnabled(True)
         else:
             self.spec_channel_combo.setEnabled(False)
 
-        self.spec_analysis_type = type
+        self.spec_analysis_type = vibro_type
 
     @status_bar_update('Выполняется расчет главных компонент...', 'Расчет главных компонент')
     def pca_calc(self):
@@ -1328,8 +1376,6 @@ class MainWindow(QMainWindow):
 
         self.pca_plot()
 
-    @status_bar_update('Выполняется отображение графиков главных компонент...',
-                       'Отображение графиков главных компонент')
     def pca_plot(self):
 
         self.pca_cov_widget.clear()

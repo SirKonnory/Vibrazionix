@@ -1,3 +1,6 @@
+"""
+Модуль "Представления" в соответствии с паттерном проектирования  MVC (Model - View - Controller)
+"""
 from PySide6 import QtCore, QtGui
 
 from PySide6.QtWidgets import QApplication, QTabWidget, QGridLayout, QMainWindow, \
@@ -18,6 +21,12 @@ config = Config()
 
 
 class DialogReduce(QDialog):
+    """
+    Class for creating Dialog for reduce input signals
+
+    :parameter
+    edit_coeff: coefficient for changing sample frequency for input signals
+    """
     def __init__(self):
         super().__init__()
 
@@ -41,6 +50,12 @@ class DialogReduce(QDialog):
 
 
 class DialogQuant(QDialog):
+    """
+    Class for creating Dialog for quantization input signals
+
+    :parameter
+    edit_levels: count of levels for quantization input signals
+    """
     def __init__(self):
         super().__init__()
 
@@ -64,6 +79,12 @@ class DialogQuant(QDialog):
 
 
 class DialogSmooth(QDialog):
+    """
+    Class for creating Dialog for smooth input signals
+
+    :parameter
+    edit_window: width of slide window for smooth input signals
+    """
     def __init__(self):
         super().__init__()
 
@@ -87,6 +108,14 @@ class DialogSmooth(QDialog):
 
 
 class DialogFilter(QDialog):
+    """
+    Class for creating Dialog for spectral filter input signals
+
+    :parameter
+    edit_rank: rank of filter
+    edit_lowfreq: lower limit of the filter band
+    edit_heigfreq: height limit of the filter band
+    """
     def __init__(self):
         super().__init__()
 
@@ -126,6 +155,18 @@ class DialogFilter(QDialog):
 
 
 class DialogProcessor(QDialog):
+    """
+    Class for generating signals by several harmonics
+
+    :parameter
+    edit_duration: duration of result signal
+    edit_sampling: sample frequency
+    edit1_a{i}: Amplitude of i-th signal
+    edit1_p{i}: Phase of i-th signal
+    edit1_f{i}: Frequency of i-th signal
+    noise: Amplitude of noise
+    edit_count: count of signals
+    """
     def __init__(self):
         super().__init__()
         self.generate = False
@@ -219,6 +260,9 @@ class DialogProcessor(QDialog):
 
 
 class DataPlotter(pg.PlotWidget):
+    """
+    Class for creating custom plot widget
+    """
     def __init__(self):
 
         super().__init__()
@@ -226,6 +270,15 @@ class DataPlotter(pg.PlotWidget):
         self.setBackground("w")
 
     def plot_data(self, x, y, actual_col, name):
+        """
+        Function for plotting data
+
+        :param x: x-axis data
+        :param y: y-axis data
+        :param actual_col: numer of used columns in model
+        :param name: label of plots
+        :return: -
+        """
         if y.any:
 
             for i, col in enumerate(actual_col):
@@ -241,6 +294,13 @@ class DataPlotter(pg.PlotWidget):
         self.setXRange(0, x[-1])
 
     def plot_mesh(self, x, y, z):
+        """
+        Function for plotting spectogram
+        :param x: frequency data
+        :param y: time data
+        :param z: amplitude data
+        :return: -
+        """
 
         img = pg.ImageItem()
         img.setImage(z, autoLevels=True)
@@ -253,10 +313,17 @@ class DataPlotter(pg.PlotWidget):
         # Добавляем изображение на график
         self.addItem(img)
 
-
 class Table(QTableWidget):
+    """
+    Class for creating custom TableWidget
+    """
+    def reinit(self, is_model_table: bool):
+        """
+        Function for re-init table for deep cleaning during the work
 
-    def reinit(self, is_model_table):
+        :param is_model_table: is this table for model data or table for statistic data
+        :return: -
+        """
         self.setRowCount(0)
         self.setColumnCount(0)
 
@@ -291,6 +358,11 @@ class Table(QTableWidget):
         self.list_header = init_channel_name
 
     def __init__(self, is_model_table):
+        """
+
+        :param is_model_table: is this table for model data or table for statistic data
+        :return: -
+        """
         super().__init__()
 
         self.checkboxes = []
@@ -324,7 +396,12 @@ class Table(QTableWidget):
         self.list_header = init_channel_name
 
     def put_data(self, data):
+        """
+        Function to fill table with data
 
+        :param data: data to put in table
+        :return: -
+        """
         def fill_table(table, table_data):
 
             for i in range(table_data.shape[0]):
@@ -361,7 +438,11 @@ class Table(QTableWidget):
 
     # Переименование заголовков
     def change_horizontal_header(self, index):
-
+        """
+        Function to changing headers of table
+        :param index: index column to change name
+        :return: -
+        """
         old_header = self.horizontalHeaderItem(index).text()
         new_header, ok = QInputDialog.getText(self,
                                               'Изменение заголовка столбца №%d' % index,
@@ -376,6 +457,10 @@ class Table(QTableWidget):
 
 
 class MainWindow(QMainWindow):
+    """
+    Main window class
+    """
+    # Decorator to logging user's action
     @staticmethod
     def status_bar_update(prefix, suffix):
         def my_decorator(func):
@@ -522,7 +607,7 @@ class MainWindow(QMainWindow):
             self.data_model_table = Table(True)
             self.data_param_table = Table(False)
 
-            # Мастер чек-мать-его-бокс
+            # Мастер чек-бокс
             self.data_master_checkbox = QCheckBox("Включить/отключить все")
             self.data_master_checkbox.setChecked(True)
             self.data_master_checkbox.stateChanged.connect(self.data_toggle_all)
@@ -625,7 +710,7 @@ class MainWindow(QMainWindow):
             spec_overlap_window_label = QLabel("Процент перекрытия:")
             spec_overlap_window_label.setMinimumWidth(200)
 
-            # Чек мать его бокс
+            # Чек-боксы
             self.spec_window_checkbox = QCheckBox('Использовать оконные преобразования')
             self.spec_curve_checkbox = QCheckBox('Сравнить с кривыми вибраций')
             self.spec_war_checkbox = QCheckBox('Сравнение по зонам самолета')
@@ -643,7 +728,7 @@ class MainWindow(QMainWindow):
             self.spec_width_window_edit = QLineEdit('256')
             self.spec_overlap_edit = QLineEdit('50')
 
-            # Комбовомбо
+            # Комбобокс
             spec_typewindow_combo = QComboBox()
             spec_typewindow_combo.addItems(["Прямоугольое окно", "Окно Ханна",
                                             "Окно Хэмминга", 'Окно Блэкмана'])
@@ -680,9 +765,6 @@ class MainWindow(QMainWindow):
             self.spec_channel_combo.setEnabled(False)
 
             # Graph spec
-            self.spec_widget = DataPlotter()
-
-            # Graph form
             self.spec_widget = DataPlotter()
 
             # Buttons
@@ -953,7 +1035,7 @@ class MainWindow(QMainWindow):
 
         msg_box = QMessageBox()
         msg_box.setWindowTitle('Справка')
-        msg_box.setText('Руководство пользователя Вы можете найти в ИИЦ 741.033-056-2023')
+        msg_box.setText('Вы можете обратиться за помощью к руководству пользователя')
         msg_box.setDetailedText(
             'Или обратитесь за помощью к моему создателю - Гордону С.В.\nТел. 8(495) 777-21-01, доб. 74-90')
 
@@ -1027,6 +1109,7 @@ class MainWindow(QMainWindow):
 
             self.data_plot()
 
+    @status_bar_update('Выполняется квантование данных...', 'Квантование данных')
     def menu_quant(self):
 
         dialog = DialogQuant()
@@ -1054,6 +1137,7 @@ class MainWindow(QMainWindow):
 
     @status_bar_update('Выполняется создание отчета...', 'Создание отчета')
     def menu_report(self):
+        # Will be added soon
         pass
 
     @status_bar_update('Выполняется загрузка данных...', 'Загрузка данных')
@@ -1111,6 +1195,7 @@ class MainWindow(QMainWindow):
         self.spec_tab.setEnabled(True)
         self.pca_tab.setEnabled(True)
 
+    # Заполнение таблицы со статистическими параметрами
     @status_bar_update('Выполняется расчет интегральных параметров...', 'Расчет интегральных параметров')
     def data_click_calc(self):
         # Clear table
@@ -1140,6 +1225,7 @@ class MainWindow(QMainWindow):
 
         self.data_param_table.put_data(param)
 
+    # Связь мастер чек-бокса и всех остальных
     def data_toggle_all(self):
 
         master_state = self.data_master_checkbox.isChecked()
@@ -1147,7 +1233,8 @@ class MainWindow(QMainWindow):
         for checkbox in self.data_model_table.checkboxes:
             checkbox.setChecked(master_state)
 
-    def data_toggle_one(self, col):
+    # Включение и выключение графиков
+    def data_toggle_one(self, col: int):
 
         if self.data_model_table.checkboxes[col].isChecked():
             self.model.insert_data(col)
@@ -1158,6 +1245,7 @@ class MainWindow(QMainWindow):
 
         self.data_update_head_color()
 
+    # Построение графиков
     def data_plot(self):
         self.pca_data_combo.clear()
         self.spec_channel_combo.clear()
@@ -1198,6 +1286,7 @@ class MainWindow(QMainWindow):
             self.pca_data_combo.addItem(self.channel_name[i])
             self.spec_channel_combo.addItem(self.channel_name[i])
 
+    # Обновление цветов заголовков при включении и выключении графиков
     def data_update_head_color(self):
 
         for i in range(self.model.data.shape[1]):
@@ -1214,7 +1303,10 @@ class MainWindow(QMainWindow):
     def spec_calc(self):
 
         def psd():
-
+            """
+            Function to calc power spectral density of input signal
+            :return: -
+            """
             self.spec_widget.clear()
 
             fs = int(self.data_fs_edit.text())
@@ -1246,6 +1338,10 @@ class MainWindow(QMainWindow):
             self.spec_widget.plot_data(x, y, self.model.actual_col, self.channel_name)
 
         def stft():
+            """
+            Function to calc short-time Fourier transform
+            :return: -
+            """
             self.spec_widget.clear()
 
             data = self.model.data[:, self.spec_channel_combo.currentIndex()]
@@ -1265,8 +1361,11 @@ class MainWindow(QMainWindow):
             self.model.get_stft(data, fs, window_type, window_width, overlap)
             self.spec_widget.plot_mesh(self.model.tt, self.model.ff, self.model.zz)
 
-        def spectogramm():
-
+        def spectrogram():
+            """
+            Function to calc spectrogram
+            :return: -
+            """
             self.spec_widget.clear()
 
             data = self.model.data[:, self.spec_channel_combo.currentIndex()]
@@ -1293,9 +1392,9 @@ class MainWindow(QMainWindow):
             stft()
 
         if self.spec_analysis_type == 3:
-            spectogramm()
+            spectrogram()
 
-    def spec_wind_update_enable(self, state):
+    def spec_wind_update_enable(self, state: int):
 
         if state == 2:
             self.spec_window_group.setEnabled(True)
@@ -1307,7 +1406,7 @@ class MainWindow(QMainWindow):
 
             # self.spec_width_window_edit.setText(self.data_fs_edit.text)
 
-    def spec_curve_update_enable(self, state):
+    def spec_curve_update_enable(self, state: int):
 
         if state == 2:
 
@@ -1317,7 +1416,7 @@ class MainWindow(QMainWindow):
 
             self.spec_curve_group.setEnabled(False)
 
-    def spec_war_update_enable(self, state):
+    def spec_war_update_enable(self, state: int):
 
         if state == 2:
 
@@ -1327,33 +1426,33 @@ class MainWindow(QMainWindow):
 
             self.spec_war_group.setEnabled(False)
 
-    def spec_switch_window_type(self, index):
+    def spec_switch_window_type(self, index: int):
 
         list_of_types = ["boxcar", "hann", "hamming", 'blackman']
 
         self.spec_type_window = list_of_types[index]
 
-    def spec_switch_vibrotype(self, index):
+    def spec_switch_vibrotype(self, index: int):
 
         list_of_types = [1, 2]
         self.spec_typevibro = list_of_types[index]
 
-    def spec_switch_curve(self, index):
+    def spec_switch_curve(self, index: int):
 
         curve = list(config.curve.values())
         self.spec_typecurve = curve[index]
 
-    def spec_switch_zone(self, index):  # !!!
+    def spec_switch_zone(self, index: int):  # !!!
 
         zone = list(config.zone.values())
         self.spec_typewar = zone[index]
 
-    def spec_switch_wartype(self, index):
+    def spec_switch_wartype(self, index: int):
 
         list_of_types = [0, 1]
         self.spec_war_expl = list_of_types[index]
 
-    def spec_swich_analysis(self, vibro_type):
+    def spec_swich_analysis(self, vibro_type: int):
 
         if vibro_type == 2 or vibro_type == 3:
             self.spec_channel_combo.setEnabled(True)
@@ -1475,6 +1574,7 @@ class MainWindow(QMainWindow):
 
     def pca_replot(self):
 
-        self.model.recovered = np.sum(self.model.rc[:, int(
-            self.pca_start_edit.text()): int(self.pca_end_edit.text())], axis=1)
+        self.model.recovered = np.sum(
+            self.model.rc[:, int(self.pca_start_edit.text()): int(self.pca_end_edit.text())], axis=1
+                                     )
         self.pca_plot()

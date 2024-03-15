@@ -1,3 +1,6 @@
+"""
+Модуль "Модель" в соответствии с паттерном проектирования  MVC (Model - View - Controller)
+"""
 import numpy as np
 from scipy import signal, fft
 from scipy.linalg import toeplitz, eig
@@ -7,7 +10,9 @@ config = Config()
 
 
 class ModelClass:
-
+    """
+    Class to contain and process data
+    """
     def __init__(self):
 
         self.recovered = None
@@ -34,7 +39,14 @@ class ModelClass:
         self.fs = None
         self.origin_data = None
 
-    def load_data(self, data, fs):
+    def load_data(self, data: np.array, fs: int):
+        """
+        Function to load data in class
+
+        :param data: array of signals
+        :param fs: sampling frequency
+        :return: -
+        """
 
         self.data = data
         self.origin_data = np.copy(data)
@@ -45,16 +57,32 @@ class ModelClass:
         self.t = np.arange(0, self.data.shape[0] * dt, dt)
         self.actual_col = [i for i in range(self.data.shape[1])]
 
-    def delete_data(self, col):
+    def delete_data(self, col: int):
+        """
+        Function to delete column from input data
+
+        :param col: column index
+        :return: -
+        """
         self.actual_col.remove(col)
         self.data = self.origin_data[:, self.actual_col]
 
-    def insert_data(self, col):
+    def insert_data(self, col: int):
+        """
+        Function to insert column to data
+
+        :param col: column index
+        :return: -
+        """
         self.actual_col.append(col)
         self.data = self.origin_data[:, self.actual_col]
 
     def calc_integrate_param(self):
+        """
+        Function to calc statistic parameters
 
+        :return: -
+        """
         self.data_min = np.around(self.data.min(
             axis=0), decimals=config.round_decimal)
         self.data_max = np.around(self.data.max(
@@ -75,6 +103,11 @@ class ModelClass:
             self.data, 75, axis=0), decimals=config.round_decimal)
 
     def get_fft(self):
+        """
+        Function to calc fast Furies transform
+
+        :return: -
+        """
         if self.actual_col:
             N = self.data.shape[0]
 
@@ -82,15 +115,32 @@ class ModelClass:
 
             self.f = fft.fftfreq(N, 1 / self.fs)[:N // 2]
 
-    def get_stft(self, data, fs, window_type, window_size, overlap):
+    def get_stft(self, data: np.array, fs: int, window_type: str, window_size: int, overlap: int):
+        """
+        Function to calc short time Furies transform
 
+        :param data: input data array
+        :param fs: sampling frequency
+        :param window_type: type of window ['boxcar', 'hann', 'hamming', 'blackman']
+        :param window_size: width of window
+        :param overlap: count of overlapping samples
+        :return: -
+        """
         if self.actual_col:
 
             self.ff, self.tt, self.zz = signal.stft(data, fs, window_type, window_size, overlap)
             self.zz = np.abs(self.zz)
 
-    def get_psd(self, fs, window_type, window_width, overlap):
+    def get_psd(self, fs: int, window_type: str, window_width: int, overlap: int):
+        """
+        Function to calc power spectral density
 
+        :param fs: sampling frequency
+        :param window_type: type of window ['boxcar', 'hann', 'hamming', 'blackman']
+        :param window_width: width of window
+        :param overlap: count of overlapping samples
+        :return: -
+        """
         self.psd = []
 
         for i in range(self.data.shape[1]):
@@ -101,7 +151,16 @@ class ModelClass:
         self.psd = np.array(self.psd).transpose()
 
     def get_spectogram(self, data, fs, window_type, window_size, overlap):
+        """
+        Function to calc spectogram
 
+        :param data: data to calc spectrogram
+        :param fs: sampling frequency
+        :param window_type: type of window ['boxcar', 'hann', 'hamming', 'blackman']
+        :param window_size: width of window
+        :param overlap: count of overlapping samples
+        :return: -
+        """
         self.ff, self.tt, self.spectorgam = signal.spectrogram(self.data[0], fs=fs,
                                                                window=window_type, nperseg=window_size,
                                                                noverlap=int(window_size * overlap / 100))
@@ -114,8 +173,16 @@ class ModelClass:
 
         # Sxx, f_a, t_a, fig = pyspecgram.pyqtspecgram(self.data, window_size, fs, Fc=0)
 
-    def filt_signal_data(self, lowcut_f, topcut_f, rank, df):
+    def filt_signal_data(self, lowcut_f: float, topcut_f: float, rank: int, df: int):
+        """
+        Function to filtering data
 
+        :param lowcut_f: low bound of frequency
+        :param topcut_f: top bound of frequency
+        :param rank: filter's order
+        :param df: sampling frequency
+        :return: -
+        """
         if lowcut_f.isdigit() and (not topcut_f.isdigit()):
 
             lowcut_f = int(lowcut_f) / (df / 2)
@@ -141,7 +208,12 @@ class ModelClass:
             self.data = signal.sosfilt(sos, self.data, axis=0)
 
     def reduce_signal_data(self, k):
+        """
+        Function to reduce signal frequency
 
+        :param k: coefficient of reducing
+        :return:
+        """
         if k.isdigit():
             k = int(k)
             self.t = self.t[::k]
@@ -149,6 +221,12 @@ class ModelClass:
             # self.notify_observers()
 
     def quantization_signal_data(self, levels):
+        """
+        Function to quantization signal. This function divides signal by amplitude level
+
+        :param levels:
+        :return:
+        """
 
         if levels.isdigit():
             levels = int(levels)
@@ -159,6 +237,12 @@ class ModelClass:
             # self.notify_observers()
 
     def smooth_signal_data(self, window_size):
+        """
+        Function apply moving average to signal
+
+        :param window_size:
+        :return:
+        """
 
         if window_size.isdigit():
 
@@ -173,15 +257,31 @@ class ModelClass:
             self.notify_observers()
 
     def pca_compute(self, data, M, start, end, method):
+        """
+        Function to compute PCA decompose of signal
 
+        :param data: data to decompose
+        :param M: width of window
+        :param start: first number of component to restore signal
+        :param end: last number of component to restore signal
+        :param method: method of computing trajectory matrix: by covariance matrix or by bias of time series
+        :return:
+        """
         N = self.data.shape[0]
         X = data
 
-        # X = X - np.mean(X)
-        # X = X / np.std(X, ddof=1)
+        '''
+        in general must be turn off: 
+        
+        X = X - np.mean(X)
+        X = X / np.std(X, ddof=1)
+        
+        add it soon in next version
+        '''
 
         if True:  # method == 0
-            # Метод Гусеницы
+            # also will be modified in next version
+            # Метод Гусеницы (метод смещения временного ряда)
             Y = np.zeros((N - M + 1, M))
 
             for m in range(M):
@@ -190,7 +290,7 @@ class ModelClass:
             self.cov = np.dot(Y.T, Y) / (N - M + 1)
 
         # else:
-        #     # Метод матрицы Тёплица
+        #     # Метод через матрицу Тёплица
         #     covX = np.correlate(X, X, mode='full') / len(X)
         #     covX = covX[len(X) - M:len(X)]
         #
@@ -220,6 +320,18 @@ class ModelClass:
             self.recovered = np.sum(self.rc[:, :], axis=1)
 
     def generate_data(self, a: list, f: list, p: list, noise: float, t: float, fs: float, n: int):
+        """
+        Function to generate data by sum of several harmonics with noise
+
+        :param a: Amplitudes of harmonics
+        :param f: Frequences of harmonics
+        :param p: Phases of harmonics
+        :param noise: Amplitude of noise
+        :param t: Signal duration
+        :param fs: Frequency of sample
+        :param n: Harmonic count
+        :return:
+        """
         self.data = []
 
         self.fs = fs
